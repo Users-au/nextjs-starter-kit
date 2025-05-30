@@ -11,6 +11,6 @@
     }
   },
   "env": {
-    "NEXT_PUBLIC_APP_NAME": "@NEXT_PUBLIC_APP_NAME"
+    "NEXT_PUBLIC_APP_NAME": "Users.au NextJs Starter Kit"
   }
 } 
