@@ -9,6 +9,8 @@ A modern Next.js starter kit with Usersau OAuth integration, built with TypeScri
 - 🎨 **Modern UI** - Built with Tailwind CSS
 - 📱 **Responsive Design** - Mobile-first responsive design
 - 🔒 **NextAuth.js** - Secure authentication handling
+- 🛡️ **Middleware Protection** - Server-side route protection with middleware
+- 🚀 **Vercel Ready** - Optimized for Vercel deployment
 - 📄 **TypeScript** - Full TypeScript support
 - 🚀 **Fast Development** - Hot reload and fast refresh
 
@@ -124,29 +126,50 @@ export default function NewPage() {
 
 #### Protected Routes
 
-To protect routes, use the session check pattern:
+Routes are protected using Next.js middleware for better performance and security. The middleware automatically:
+
+- Redirects unauthenticated users to the login page
+- Redirects authenticated users away from auth pages
+- Handles session validation at the server level
+- Provides automatic callback URL handling
+
+**Adding New Protected Routes:**
+
+1. Add the route pattern to the `protectedRoutes` array in `src/middleware.ts`:
 
 ```typescript
+const protectedRoutes = ['/dashboard', '/profile', '/settings']
+```
+
+2. Create your page component normally - no authentication checks needed:
+
+```typescript
+// src/app/profile/page.tsx
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 
-export default function ProtectedPage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
+export default function ProfilePage() {
+  const { data: session } = useSession()
+  
+  // No need for authentication checks - middleware handles it
+  return <div>Welcome {session?.user?.name}!</div>
+}
+```
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login')
-    }
-  }, [status, router])
+**Alternative: Using ProtectedRoute Component**
 
-  if (status === 'loading') return <div>Loading...</div>
-  if (!session) return null
+For additional client-side protection, you can use the `ProtectedRoute` component:
 
-  return <div>Protected content</div>
+```typescript
+import ProtectedRoute from '@/components/ProtectedRoute'
+
+export default function MyProtectedPage() {
+  return (
+    <ProtectedRoute>
+      <div>This content is protected</div>
+    </ProtectedRoute>
+  )
 }
 ```
 
@@ -169,9 +192,14 @@ nextjs-starter-kit/
 │   │   ├── layout.tsx                    # Root layout
 │   │   ├── page.tsx                      # Home page
 │   │   └── providers.tsx                 # Session provider
-│   └── lib/
-│       └── auth.ts                       # NextAuth.js configuration
-├── .env.example                          # Environment variables example
+│   ├── components/
+│   │   └── ProtectedRoute.tsx            # Protected route wrapper
+│   ├── lib/
+│   │   └── auth.ts                       # NextAuth.js configuration
+│   └── middleware.ts                     # Authentication middleware
+├── vercel.json                           # Vercel configuration
+├── VERCEL_DEPLOYMENT.md                  # Deployment guide
+├── env.example                           # Environment variables example
 ├── package.json                          # Dependencies and scripts
 ├── tailwind.config.ts                    # Tailwind CSS configuration
 └── tsconfig.json                         # TypeScript configuration
@@ -195,11 +223,15 @@ nextjs-starter-kit/
 
 ### Vercel (Recommended)
 
+This project is optimized for Vercel deployment. See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed instructions.
+
+**Quick Deploy:**
+
 1. Push your code to GitHub
 2. Connect your repository to Vercel
-3. Add environment variables in Vercel dashboard
-4. Update `NEXTAUTH_URL` to your production domain
-5. Update OAuth redirect URI in Usersau console
+3. Set environment variables (see [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md))
+4. Update OAuth redirect URI in Usersau console
+5. Deploy!
 
 ### Other Platforms
 
