@@ -227,11 +227,12 @@ This project is optimized for Vercel deployment. See [VERCEL_DEPLOYMENT.md](./VE
 
 **Quick Deploy:**
 
+1. Fork this repository
 1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Set environment variables (see [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md))
-4. Update OAuth redirect URI in Usersau console
-5. Deploy!
+1. Connect your repository to Vercel
+1. Set environment variables (see [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md))
+1. Update OAuth redirect URI in Usersau console
+1. Deploy!
 
 ### Other Platforms
 

@@ -37,7 +37,7 @@ USERSAU_CLIENT_ID=your_usersau_client_id
 USERSAU_CLIENT_SECRET=your_usersau_client_secret
 USERSAU_HOST=https://your-subdomain.users.au
 NEXT_PUBLIC_APP_NAME=Your App Name
-NEXT_PUBLIC_USERSAU_HOST=https://your-subdomain.users.au
+NEXT_PUBLIC_USERSAU_HOST=https://your-app.vercel.app
 ```
 
 ### Important Notes

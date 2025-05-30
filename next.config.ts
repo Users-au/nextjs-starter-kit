@@ -4,10 +4,8 @@ const nextConfig: NextConfig = {
   // Optimize for Vercel deployment
   output: 'standalone',
   
-  // Enable experimental features for better performance
-  experimental: {
-    serverComponentsExternalPackages: ['next-auth'],
-  },
+  // External packages configuration
+  serverExternalPackages: ['next-auth'],
   
   // Security headers
   async headers() {
