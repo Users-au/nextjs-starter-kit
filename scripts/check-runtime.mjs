@@ -10,7 +10,7 @@ export function supportedRuntime(version) {
 }
 
 export function checkRuntime(version = process.versions.node) {
-  if (!supportedRuntime(version)) throw new Error("Use a patched Node.js LTS runtime: 24.22.1+ (24.x) or 22.23.4+ (22.x). See .nvmrc and the October 2026 Node.js security release.")
+  if (!supportedRuntime(version)) throw new Error(`Unsupported Node.js runtime ${version}. Use a patched Node.js LTS runtime: 24.22.1+ (24.x) or 22.23.4+ (22.x). See .nvmrc and the October 2026 Node.js security release.`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) checkRuntime()

@@ -127,7 +127,7 @@ After configuration is complete:
 ```bash
 vercel deploy --prod --logs --scope my-team
 vercel project inspect my-app --scope my-team
-vercel logs --environment production --level error --since 5m --scope my-team
+vercel logs --environment production --query 'level:error' --since 5m --scope my-team
 ```
 
 Check the deployment's Ready state and actual production alias. Verify the
