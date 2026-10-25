@@ -1,7 +1,7 @@
 # Security and verification
 
-Updated 2026-10-25 after adapting this starter for SLJ Gateway. This change fixes
-the identified starter issues, rather than leaving them as documentation tasks.
+This guide describes the starter's security controls, verification methods and
+the application-specific responsibilities that integrations must implement.
 
 ## Implemented controls
 

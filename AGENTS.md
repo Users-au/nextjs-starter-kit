@@ -34,6 +34,9 @@ does not establish production readiness.
   databases, queues, providers or production infrastructure.
 - Keep reusable starter fixes separate from business features. Consumers own
   their roles, tenant model, data storage and audit events.
+- Write public documentation for all library users. Describe general contracts
+  and integration requirements without personal project histories, private
+  deployment details or assumptions about a particular user's infrastructure.
 - Fix identified implementation/security defects within the authorized task;
   do not merely document them as future work. Preserve zero-vulnerability audit
   status and extend behavior tests when changing authentication/access controls.

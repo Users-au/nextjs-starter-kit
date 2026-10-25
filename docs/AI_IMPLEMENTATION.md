@@ -5,23 +5,24 @@ Read [AGENTS.md](../AGENTS.md), [README.md](../README.md) and
 and target-repository conventions. The starter supplies working authentication
 and membership admission. Consumers own business permissions and infrastructure.
 
-## Lessons from SLJ Gateway
+## Integration requirements
 
-Gateway turned this starter into an admin frontend alongside an API, worker,
-database and Redis. The reusable fixes are now in the starter:
+Preserve these authentication contracts when building an application from the
+starter, regardless of its product domain or deployment architecture:
 
-| Integration lesson | Preserve/extend |
+| Concern | Required behavior |
 | --- | --- |
-| Hard-coded `read` caused `invalid_scope`. | Empty `USERSAU_SCOPE` stays explicit `scope: undefined`; test the generated authorization request after provider/library refactors. |
-| Local logout reused the provider session. | Await NextAuth sign-out, then navigate to the same identity origin's `/logout`. Check the next login in a real browser. |
-| IDs/images varied by profile shape. | Validated string `usersauId`, usable `avatar`/`image`/`picture` fallback and profile/account UI. |
-| Authentication did not grant admin permission. | Shared server admission helper and protected API; extend it with local roles/resource ownership, never grant admin solely on login/email. |
-| Deep links and a public-domain change needed safe returns. | Same-origin callback validation with path/query retained; public callback registration and actual generated `redirect_uri` must agree. |
-| Browser UI did not need provider tokens. | Minimal typed sessions; do not retain/expose unused OAuth tokens. |
-| Workspace/Docker/proxy configuration diverged from local assumptions. | Correct app-root env loading, public app versus identity origins, public build values and private runtime injection. |
+| OAuth scopes | Empty `USERSAU_SCOPE` stays explicit `scope: undefined`; request only registered scopes and test the generated authorization request after provider/library refactors. |
+| Sign-out | Await NextAuth sign-out, then navigate to the same identity origin's `/logout`. Check the next login in a real browser. |
+| Profile data | Validate string `usersauId`, apply usable `avatar`/`image`/`picture` fallbacks and retain profile/account UI. |
+| Authorization | Use the server admission helper and extend it with application roles/resource ownership; never grant administrator access solely on login or email. |
+| Return URLs | Retain same-origin path/query; public callback registration and the actual generated `redirect_uri` must agree. |
+| Token handling | Keep sessions minimal and typed; do not retain or expose unused OAuth tokens. |
+| Deployment configuration | Load env from the app root, distinguish application and identity origins, and separate public build values from private runtime injection. |
 
-Do not hard-code Gateway domains, allowlists, roles, databases or queues into
-another app. Reuse the contracts and choose architecture from its requirements.
+Keep domains, access policies and infrastructure configurable. Select databases,
+queues and other services from the application's requirements rather than
+assuming a particular project architecture.
 
 ## Implementation sequence
 
