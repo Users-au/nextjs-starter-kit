@@ -3,29 +3,43 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "build:check": "node scripts/build-check.js",
-    "build:vercel": "npm run build:check && npm run build",
-    "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "dev": "npm run dev:check && next dev --turbopack",
+    "build": "npm run build:check && next build",
+    "build:check": "node --import tsx scripts/build-check.ts",
+    "build:vercel": "npm run build",
+    "start": "node scripts/check-runtime.mjs && next start",
+    "lint": "eslint . --max-warnings=0",
+    "type-check": "tsc --noEmit",
+    "setup": "node scripts/setup-env.mjs",
+    "dev:check": "node --import tsx scripts/build-check.ts --development",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "check": "npm run lint && npm run type-check && npm test",
+    "test:integration": "node --import tsx --test integration/*.test.ts"
   },
   "dependencies": {
-    "next": "15.3.3",
-    "next-auth": "^4.24.11",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@next/env": "^15.5.28",
+    "next": "^15.5.28",
+    "next-auth": "^4.24.15",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.28",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": "^22.23.4 || ^24.22.1"
+  },
+  "overrides": {
+    "postcss": "^8.5.31",
+    "brace-expansion@^1.1.7": "^1.1.21"
   }
 }

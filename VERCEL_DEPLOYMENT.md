@@ -1,148 +1,84 @@
-# Vercel Deployment Guide
+# Deployment guide
 
-This guide will help you deploy your Next.js Usersau Starter Kit to Vercel.
+Complete the [security/verification checklist](docs/READINESS.md). Deploy only
+with the target environment's authorization; a merged PR is not deployment
+authorization. Business permissions remain the consuming application's job.
 
-## Prerequisites
+## Vercel
 
-- A Vercel account ([sign up here](https://vercel.com/signup))
-- Your Usersau OAuth application configured
-- Your code pushed to a Git repository (GitHub, GitLab, or Bitbucket)
+Import the repository. For a monorepo, select the Next.js workspace root and
+adapt workspace install/build commands. Current `vercel.json` uses `npm ci`,
+`npm run build`, `.next` output and `npm run dev` for development. The build
+command includes strict production env validation and cannot bypass it.
+Select Node.js 24.x with a patch at least 24.22.1 (or supported 22.x at least
+22.23.4); an older hosting runtime fails startup rather than silently ignoring
+the security baseline. CI follows `.nvmrc`.
 
-## Step 1: Connect Your Repository
+Supply environment values through hosting configuration, never committed files:
 
-1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
-2. Click "New Project"
-3. Import your Git repository
-4. Select your repository from the list
-
-## Step 2: Configure Build Settings
-
-Vercel will auto-detect your Next.js project. The default settings should work fine:
-
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-- **Install Command**: `npm install`
-- **Development Command**: `npm run dev`
-
-## Step 3: Set Environment Variables
-
-In the Vercel deployment configuration, add these environment variables:
-
-### Required Variables
-
-```bash
-NEXTAUTH_URL=https://your-app-name.vercel.app
-NEXTAUTH_SECRET=your-super-secret-key-here
-USERSAU_CLIENT_ID=your_usersau_client_id
-USERSAU_CLIENT_SECRET=your_usersau_client_secret
-USERSAU_HOST=https://your-subdomain.users.au
-NEXT_PUBLIC_APP_NAME=Your App Name
-NEXT_PUBLIC_USERSAU_HOST=https://your-app.vercel.app
+```dotenv
+NEXTAUTH_URL=https://app.your-domain.com
+NEXTAUTH_SECRET=use-a-generated-private-secret-at-least-32-characters
+USERSAU_CLIENT_ID=real-environment-client-id
+USERSAU_CLIENT_SECRET=real-environment-client-secret
+USERSAU_HOST=https://identity.your-domain.com
+USERSAU_SCOPE=
+USERSAU_ACCESS_MODE=allowlist
+USERSAU_ALLOWED_USER_IDS=42,100
+NEXT_PUBLIC_APP_NAME="My Application"
+NEXT_PUBLIC_USERSAU_HOST=https://identity.your-domain.com
 ```
 
-### Important Notes
+Replace every example value. Keep the secret stable across deployments/replicas.
+Both Users.au host variables mean the identity origin, **not** the application's
+Vercel URL. Use `all` only if all authenticated identities should have membership;
+custom roles/tenants still require server-side authorization.
 
-- **NEXTAUTH_URL**: Must be your production domain (e.g., `https://your-app.vercel.app`)
-- **NEXTAUTH_SECRET**: Generate a secure secret using `openssl rand -base64 32`
-- Replace `your-app-name` with your actual Vercel app name
-- Replace `your-subdomain` with your actual Usersau subdomain
+Register the exact public callback in Users.au:
 
-## Step 4: Update Usersau OAuth Settings
+```text
+https://app.your-domain.com/api/auth/callback/usersau
+```
 
-1. Go to your [Usersau Developer Console](https://my.users.au)
-2. Navigate to your project's OAuth Management
-3. Add your production callback URL: `https://your-app-name.vercel.app/api/auth/callback/usersau`
-4. Make sure both development and production URLs are configured
+Scope Development/Preview/Production env separately, preferably with separate
+OAuth registrations/credentials. Use a stable preview domain with its exact
+registered callback; do not assume arbitrary preview URLs or wildcard callbacks
+are accepted. Public variables must be set before building; rebuild on changes.
+See [Next.js env behavior](https://nextjs.org/docs/15/app/guides/environment-variables).
 
-## Step 5: Deploy
+On app domain changes, coordinate `NEXTAUTH_URL`, registered callback and any
+consumer public URLs. Change Users.au host variables only when the provider
+domain changes. Verify the actual generated `redirect_uri` after any migration.
 
-1. Click "Deploy" in Vercel
-2. Wait for the build to complete
-3. Your app will be available at `https://your-app-name.vercel.app`
+## Standalone, Docker and reverse proxies
 
-## Step 6: Test the Deployment
+`next.config.ts` emits standalone output. For a packaged standalone deployment,
+include `.next/standalone`, copy `public` beside its `server.js`, and copy
+`.next/static` into its `.next/static` directory. Run `node server.js` from that
+output directory with the deployment's private env injected. Bind `HOSTNAME` and
+`PORT` for the target container/network. Do not bake private `.env` files into
+images or pass real private credentials through Docker build arguments.
 
-1. Visit your deployed application
-2. Try the OAuth login flow
-3. Verify that authentication works correctly
-4. Check that redirects work as expected
+Build-time config validation and server startup use the same contract; Next.js
+instrumentation validates private config and the patched runtime before serving.
+In a secret-free image builder, use clearly synthetic, non-secret build fixture
+credentials with the intended public origins; inject real private values at
+runtime. CI demonstrates fixture builds. Never deploy fixture
+credentials as real authentication configuration.
 
-## Environment Variables Reference
+Use the public browser-facing HTTPS origin in `NEXTAUTH_URL` and registration,
+not `http://admin:3000`. Configure trusted proxy host/protocol forwarding for the
+actual topology. Keep internal API addresses separate and private. In monorepos,
+load Next.js env from the app workspace or inject it explicitly; a root env file
+does not automatically configure every workspace. See [AI implementation](docs/AI_IMPLEMENTATION.md).
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXTAUTH_URL` | Your production domain | `https://myapp.vercel.app` |
-| `NEXTAUTH_SECRET` | Secret for JWT encryption | `your-generated-secret` |
-| `USERSAU_CLIENT_ID` | Your Usersau OAuth client ID | `your_client_id` |
-| `USERSAU_CLIENT_SECRET` | Your Usersau OAuth client secret | `your_client_secret` |
-| `USERSAU_HOST` | Your Usersau instance URL | `https://company.users.au` |
-| `NEXT_PUBLIC_APP_NAME` | Your application name | `My App` |
-| `NEXT_PUBLIC_USERSAU_HOST` | Public Usersau URL | `https://company.users.au` |
+## Release verification
 
-## Domain Configuration
+Run `npm run check`, `npm run build`, `npm run test:integration` and the current
+dependency audit. Record all [acceptance outcomes](docs/READINESS.md#acceptance-checklist).
 
-### Custom Domain (Optional)
-
-If you want to use a custom domain:
-
-1. Go to your Vercel project settings
-2. Navigate to "Domains"
-3. Add your custom domain
-4. Update `NEXTAUTH_URL` to your custom domain
-5. Update the OAuth callback URL in Usersau
-
-### Multiple Environments
-
-For staging/preview deployments, you can set different environment variables:
-
-- Use Vercel's environment variable scoping (Development, Preview, Production)
-- Set up separate Usersau OAuth applications for different environments
-- Use different `NEXTAUTH_URL` values for each environment
-
-## Troubleshooting
-
-### Common Issues
-
-1. **OAuth Callback URL Mismatch**
-   - Ensure the callback URL in Usersau matches your deployment URL
-   - Check that `NEXTAUTH_URL` is set correctly
-
-2. **Environment Variables Not Loading**
-   - Verify all required variables are set in Vercel dashboard
-   - Redeploy after adding/changing environment variables
-
-3. **Build Failures**
-   - Check the build logs in Vercel dashboard
-   - Ensure all dependencies are properly listed in `package.json`
-
-4. **Authentication Not Working**
-   - Verify `NEXTAUTH_SECRET` is set and secure
-   - Check that Usersau OAuth credentials are correct
-   - Ensure `USERSAU_HOST` URL is accessible
-
-### Support
-
-If you encounter issues:
-
-1. Check the Vercel build logs
-2. Review the browser console for client-side errors
-3. Verify all environment variables are correctly set
-4. Test OAuth flow in Usersau developer console
-
-## Performance Optimization
-
-The project is already optimized for Vercel with:
-
-- **Edge Runtime**: Middleware runs at the edge for faster redirects
-- **Static Generation**: Pages are statically generated where possible
-- **Image Optimization**: Next.js image optimization is enabled
-- **Bundle Analysis**: Check bundle size with `npm run build`
-
-## Security Features
-
-- **Security Headers**: Configured in `next.config.ts`
-- **HTTPS Only**: All authentication flows require HTTPS in production
-- **Secure Cookies**: NextAuth.js uses secure cookies in production
-- **CSRF Protection**: Built-in CSRF protection for forms
-
-Your application is now ready for production deployment on Vercel! 
+Then complete a real browser sign-in in the deployed environment: inspect scope
+and callback, finish token exchange/profile/session setup, exercise permissions,
+open account management, sign out of both sessions and verify the next login.
+Test denied/error/expired cases. A build, health 200, generated authorization URL
+or synthetic JWT test does not prove a live Users.au token exchange or logout.
