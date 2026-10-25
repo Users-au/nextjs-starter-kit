@@ -89,6 +89,19 @@ Remove the variable and redeploy once the provider's patched runtime is
 available, then verify startup without the exception. Do not copy this setting
 into normal application defaults or use it on self-managed servers.
 
+Only after the operator has accepted that risk, configure the exception as a
+Production Config value and create a new deployment:
+
+```bash
+printf %s true | vercel env add USERSAU_ALLOW_MANAGED_PATCH_LAG \
+  --environment production --no-sensitive --yes --scope my-team
+```
+
+Changing an environment variable does not update an already built deployment.
+Verify a new deployment's actual response and startup warning before promotion.
+After the patched runtime is available, remove the Production variable and
+deploy again; verify the new function starts with strict validation restored.
+
 ### Configure Production before deploying
 
 Supply environment values through hosting configuration, never committed files:
@@ -175,6 +188,14 @@ the actual function response and logs, then promote the verified candidate:
 ```bash
 vercel promote <deployment-url> --scope my-team --yes
 ```
+
+Candidate checks can verify startup, pages and anonymous API protection. A
+candidate using the stable Production `NEXTAUTH_URL` cannot prove a complete
+OAuth round trip from its temporary hostname: browser state/CSRF cookies belong
+to the hostname where login started, while the registered callback returns to
+the stable hostname. Complete real browser sign-in/out through the stable
+domain after promotion. To test OAuth before promotion, configure a separate
+stable test domain, credentials and exact callback registration for that domain.
 
 Verify the stable production hostname in a browser; preview or deployment-specific URLs
 may be protected by Vercel Authentication independently of Users.au login. Do
