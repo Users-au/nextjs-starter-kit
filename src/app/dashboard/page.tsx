@@ -24,7 +24,8 @@ export default function DashboardPage() {
   }
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/auth/login' })
+    await signOut({ redirect: false })
+    window.location.href = `${process.env.NEXT_PUBLIC_USERSAU_HOST || 'https://your-subdomain.users.au'}/logout`
   }
 
   const handleManageAccount = () => {
@@ -44,7 +45,22 @@ export default function DashboardPage() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Hello, {session.user?.name}</span>
+              <button
+                onClick={handleManageAccount}
+                className="flex items-center gap-3 rounded-md px-2 py-1 text-left hover:bg-gray-50"
+              >
+                {session.user?.image ? (
+                  <img src={session.user.image} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                    {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || 'U'}
+                  </span>
+                )}
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">{session.user?.name || 'User'}</span>
+                  <span className="block text-xs text-gray-500">{session.user?.email}</span>
+                </span>
+              </button>
               <button
                 onClick={handleSignOut}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
@@ -84,9 +100,13 @@ export default function DashboardPage() {
                 {/* User Profile Card */}
                 <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                   <div className="flex items-center mb-4">
-                    <div className="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xl font-semibold">
-                      {session.user?.name?.charAt(0) || 'U'}
-                    </div>
+                    {session.user?.image ? (
+                      <img src={session.user.image} alt="" className="h-16 w-16 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xl font-semibold">
+                        {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || 'U'}
+                      </div>
+                    )}
                     <div className="ml-4">
                       <h2 className="text-xl font-semibold text-gray-900">{session.user?.name}</h2>
                       <p className="text-gray-600">{session.user?.email}</p>
@@ -105,7 +125,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <dt className="text-sm font-medium text-gray-500">Usersau ID</dt>
-                        <dd className="text-sm text-gray-900">{(session as any)?.user?.usersau_id || 'N/A'}</dd>
+                        <dd className="text-sm text-gray-900">{(session as any)?.user?.usersauId || 'N/A'}</dd>
                       </div>
                       <div>
                         <dt className="text-sm font-medium text-gray-500">Session Status</dt>

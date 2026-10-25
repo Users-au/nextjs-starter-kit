@@ -50,8 +50,10 @@ A modern Next.js starter kit with Usersau OAuth integration, built with TypeScri
    USERSAU_CLIENT_ID=your_client_id_here
    USERSAU_CLIENT_SECRET=your_client_secret_here
    USERSAU_HOST=https://your-subdomain.users.au
+   USERSAU_SCOPE=
    
    NEXT_PUBLIC_APP_NAME="Next.js Usersau Starter Kit"
+   NEXT_PUBLIC_USERSAU_HOST=https://your-subdomain.users.au
    ```
 
 5. **Start the development server**
@@ -79,6 +81,10 @@ A modern Next.js starter kit with Usersau OAuth integration, built with TypeScri
 
 Update your `.env.local` file with the credentials from step 1.
 
+`USERSAU_SCOPE` should usually be left empty. Set it only when your Usersau OAuth
+application has matching explicit scopes configured. Requesting an unsupported
+scope can make Usersau redirect back to NextAuth with `error=Callback`.
+
 ## Usage
 
 ### Available Routes
@@ -102,6 +108,8 @@ The application uses NextAuth.js for session management:
 - Sessions are stored as JWTs
 - User data includes Usersau ID, name, email, and avatar
 - Access and refresh tokens are stored in the session
+- Signing out clears the local NextAuth session and redirects to the Usersau
+  logout endpoint so the next login shows the Usersau login form again.
 
 ### Customization
 

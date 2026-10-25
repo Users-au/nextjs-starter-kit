@@ -1,6 +1,8 @@
 import type { AuthOptions } from "next-auth"
 import type { JWT } from "next-auth/jwt"
 
+const usersauScope = process.env.USERSAU_SCOPE?.trim() || undefined
+
 // Define Usersau OAuth provider
 const UsersauProvider = {
   id: "usersau",
@@ -9,8 +11,8 @@ const UsersauProvider = {
   authorization: {
     url: `${process.env.USERSAU_HOST}/oauth/authorize`,
     params: {
-      scope: "read",
       response_type: "code",
+      scope: usersauScope,
     },
   },
   token: `${process.env.USERSAU_HOST}/oauth/token`,
@@ -22,8 +24,8 @@ const UsersauProvider = {
       id: profile.id.toString(),
       name: profile.name,
       email: profile.email,
-      image: profile.avatar || null,
-      usersau_id: profile.id,
+      image: profile.avatar ?? profile.image ?? profile.picture ?? null,
+      usersauId: profile.id.toString(),
     }
   },
 }
@@ -39,7 +41,7 @@ export const authOptions: AuthOptions = {
       if (account) {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
-        token.usersauId = profile?.id
+        token.usersauId = profile?.id?.toString()
       }
       return token
     },
