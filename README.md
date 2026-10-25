@@ -1,273 +1,173 @@
 # Next.js Usersau Starter Kit
 
-A modern Next.js starter kit with Usersau OAuth integration, built with TypeScript and Tailwind CSS.
+A Next.js App Router foundation for Users.au login, a protected dashboard and
+profile API, account management and sign-out. Includes typed minimal sessions,
+server-side identity admission, safe login return URLs and regression checks.
 
-## Features
+- [AI implementation guide](docs/AI_IMPLEMENTATION.md): workflow, integration
+  contracts, downstream lessons and a copyable implementation prompt.
+- [Security and verification](docs/READINESS.md): implemented controls, how to
+  verify them, and boundaries that business applications must extend.
+- [Vercel deployment](VERCEL_DEPLOYMENT.md) and [agent instructions](AGENTS.md).
 
-- 🔐 **Usersau OAuth Authentication** - Complete OAuth integration with Usersau
-- ⚡ **Next.js 15** - Latest Next.js with App Router
-- 🎨 **Modern UI** - Built with Tailwind CSS
-- 📱 **Responsive Design** - Mobile-first responsive design
-- 🔒 **NextAuth.js** - Secure authentication handling
-- 🛡️ **Middleware Protection** - Server-side route protection with middleware
-- 🚀 **Vercel Ready** - Optimized for Vercel deployment
-- 📄 **TypeScript** - Full TypeScript support
-- 🚀 **Fast Development** - Hot reload and fast refresh
+## Versions and requirements
 
-## Requirements
+Use patched Node.js 24.22.1+ (24.x) or 22.23.4+ (22.x); `.nvmrc` and CI use
+24.22.1. Older/unsupported runtimes fail installation, startup and build checks.
+These minimums include the [October 2026 runtime security fixes](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
+Dependencies include
+Next.js 15.5.28, NextAuth 4.24.15, React 19.3.1, TypeScript 5 and Tailwind CSS 4.
+The npm lockfile records exact versions. Use NextAuth **v4** APIs with this code;
+Auth.js v5 is a separate migration. Review versions and security advisories when
+updating dependencies rather than treating this snapshot as permanently secure.
 
-- Node.js 18+ 
-- npm or yarn
-- A Usersau OAuth application
+## Local setup
 
-## Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Users-au/nextjs-starter-kit.git
-   cd nextjs-starter-kit
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-3. **Environment setup**
-   ```bash
-   cp .env.example .env.local
-   ```
-
-4. **Configure environment variables**
-   
-   Edit `.env.local` with your Usersau OAuth credentials:
-   ```env
-   NEXTAUTH_URL=http://localhost:3000
-   NEXTAUTH_SECRET=your-secret-key-here
-   
-   USERSAU_CLIENT_ID=your_client_id_here
-   USERSAU_CLIENT_SECRET=your_client_secret_here
-   USERSAU_HOST=https://your-subdomain.users.au
-   USERSAU_SCOPE=
-   
-   NEXT_PUBLIC_APP_NAME="Next.js Usersau Starter Kit"
-   NEXT_PUBLIC_USERSAU_HOST=https://your-subdomain.users.au
-   ```
-
-5. **Start the development server**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
-
-6. **Open your browser**
-   
-   Visit [http://localhost:3000](http://localhost:3000) to see your application.
-
-## Usersau OAuth Setup
-
-### 1. Register Your Application
-
-1. Go to [Usersau Developer Console](https://my.users.au)
-2. Go to / Create a new Project and go to Integration > OAuth Management
-3. Create a new OAuth application
-4. Set the redirect URI as: `http://localhost:3000/api/auth/callback/usersau`
-5. Copy the Client ID and Client Secret
-
-### 2. Configure Environment Variables
-
-Update your `.env.local` file with the credentials from step 1.
-
-`USERSAU_SCOPE` should usually be left empty. Set it only when your Usersau OAuth
-application has matching explicit scopes configured. Requesting an unsupported
-scope can make Usersau redirect back to NextAuth with `error=Callback`.
-
-## Usage
-
-### Available Routes
-
-- `/` - Home page (redirects to login or dashboard)
-- `/auth/login` - Login page with Usersau OAuth
-- `/dashboard` - Protected dashboard page
-- `/api/auth/*` - NextAuth.js API routes
-
-### Authentication Flow
-
-1. Users visit the home page and are redirected to login
-2. They click "Continue" to authenticate with Usersau
-3. After successful authentication, they are redirected to the dashboard
-4. User data is automatically managed by NextAuth.js
-
-### Session Management
-
-The application uses NextAuth.js for session management:
-
-- Sessions are stored as JWTs
-- User data includes Usersau ID, name, email, and avatar
-- Access and refresh tokens are stored in the session
-- Signing out clears the local NextAuth session and redirects to the Usersau
-  logout endpoint so the next login shows the Usersau login form again.
-
-### Customization
-
-#### Styling
-
-The application uses Tailwind CSS. You can customize the design by:
-
-- Editing the Tailwind configuration in `tailwind.config.ts`
-- Modifying component styles in the page files
-- Adding custom CSS in `src/app/globals.css`
-
-#### Adding New Pages
-
-Create new pages in the `src/app` directory following Next.js App Router conventions:
-
-```typescript
-// src/app/new-page/page.tsx
-export default function NewPage() {
-  return <div>New Page Content</div>
-}
+```bash
+git clone https://github.com/Users-au/nextjs-starter-kit.git
+cd nextjs-starter-kit
+# With nvm installed:
+nvm install
+nvm use
+npm ci
+npm run setup
 ```
 
-#### Protected Routes
+Setup copies `env.example` (no leading dot) to a private `.env.local`, generates
+`NEXTAUTH_SECRET`, and never overwrites an existing file/secret. Alternatively,
+`bash install.sh` runs the lockfile install and setup. Edit the resulting file:
 
-Routes are protected using Next.js middleware for better performance and security. The middleware automatically:
-
-- Redirects unauthenticated users to the login page
-- Redirects authenticated users away from auth pages
-- Handles session validation at the server level
-- Provides automatic callback URL handling
-
-**Adding New Protected Routes:**
-
-1. Add the route pattern to the `protectedRoutes` array in `src/middleware.ts`:
-
-```typescript
-const protectedRoutes = ['/dashboard', '/profile', '/settings']
+```dotenv
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=use-the-private-value-generated-by-setup
+USERSAU_CLIENT_ID=your-real-client-id
+USERSAU_CLIENT_SECRET=your-real-client-secret
+USERSAU_HOST=https://identity.your-domain.com
+USERSAU_SCOPE=
+USERSAU_ACCESS_MODE=allowlist
+USERSAU_ALLOWED_USER_IDS=42,100
+NEXT_PUBLIC_APP_NAME="My Application"
+NEXT_PUBLIC_USERSAU_HOST=https://identity.your-domain.com
 ```
 
-2. Create your page component normally - no authentication checks needed:
+Replace example credentials, domains and IDs. `USERSAU_ACCESS_MODE=allowlist`
+allows only the listed stable Users.au IDs. Use `all` deliberately for an app
+that accepts any authenticated identity; the shipped env example selects `all`
+for the demo. An absent/unknown mode or empty allowlist fails configuration.
+This is membership admission, not business roles or tenant authorization.
 
-```typescript
-// src/app/profile/page.tsx
-'use client'
+In the [Users.au console](https://my.users.au), open the project's Integration >
+OAuth Management, create an OAuth application and register exactly:
 
-import { useSession } from 'next-auth/react'
-
-export default function ProfilePage() {
-  const { data: session } = useSession()
-  
-  // No need for authentication checks - middleware handles it
-  return <div>Welcome {session?.user?.name}!</div>
-}
+```text
+http://localhost:3000/api/auth/callback/usersau
 ```
 
-**Alternative: Using ProtectedRoute Component**
-
-For additional client-side protection, you can use the `ProtectedRoute` component:
-
-```typescript
-import ProtectedRoute from '@/components/ProtectedRoute'
-
-export default function MyProtectedPage() {
-  return (
-    <ProtectedRoute>
-      <div>This content is protected</div>
-    </ProtectedRoute>
-  )
-}
+```bash
+npm run dev
 ```
 
-## File Structure
+Open `http://localhost:3000`. Development startup validates config before starting
+Next.js. Production build validation additionally requires non-loopback HTTPS
+origins. Generate/register separate credentials and callbacks per environment.
 
-```
-nextjs-starter-kit/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── auth/
-│   │   │       └── [...nextauth]/
-│   │   │           └── route.ts          # NextAuth.js API routes
-│   │   ├── auth/
-│   │   │   └── login/
-│   │   │       └── page.tsx              # Login page
-│   │   ├── dashboard/
-│   │   │   └── page.tsx                  # Dashboard page
-│   │   ├── globals.css                   # Global styles
-│   │   ├── layout.tsx                    # Root layout
-│   │   ├── page.tsx                      # Home page
-│   │   └── providers.tsx                 # Session provider
-│   ├── components/
-│   │   └── ProtectedRoute.tsx            # Protected route wrapper
-│   ├── lib/
-│   │   └── auth.ts                       # NextAuth.js configuration
-│   └── middleware.ts                     # Authentication middleware
-├── vercel.json                           # Vercel configuration
-├── VERCEL_DEPLOYMENT.md                  # Deployment guide
-├── env.example                           # Environment variables example
-├── package.json                          # Dependencies and scripts
-├── tailwind.config.ts                    # Tailwind CSS configuration
-└── tsconfig.json                         # TypeScript configuration
-```
+## Environment contract
 
-## Technology Stack
+| Variable | Meaning |
+| --- | --- |
+| `NEXTAUTH_URL` | Public **application** origin with local port when applicable. Not the provider or an internal container/service URL. |
+| `NEXTAUTH_SECRET` | Private secret of at least 32 characters; preserve across restarts and replicas. |
+| `USERSAU_CLIENT_ID` / `USERSAU_CLIENT_SECRET` | Private configuration for this environment's OAuth registration. |
+| `USERSAU_HOST` | Identity-provider origin; custom domains supported. No path, query, fragment or credentials. |
+| `USERSAU_SCOPE` | Empty by default; set space-separated scopes only when explicitly supported by the OAuth registration. |
+| `USERSAU_ACCESS_MODE` | Required explicit `all` or `allowlist` admission policy. |
+| `USERSAU_ALLOWED_USER_IDS` | Comma-separated stable identity IDs, required for allowlist mode. Not email addresses. |
+| `NEXT_PUBLIC_USERSAU_HOST` | Public identity origin, required to match `USERSAU_HOST`; never the app origin. |
+| `NEXT_PUBLIC_APP_NAME` | Browser-visible display name. Also customize static metadata in `src/app/layout.tsx`. |
 
-- **Frontend**: Next.js 15, React 18, TypeScript
-- **Styling**: Tailwind CSS
-- **Authentication**: NextAuth.js, Usersau OAuth 2.0
-- **Development**: ESLint, PostCSS
+The registered callback is `${NEXTAUTH_URL}/api/auth/callback/usersau`. Origin
+validation rejects placeholders, embedded credentials and unsafe URLs; HTTP
+loopback is allowed only outside production. Trailing `/` is normalized.
 
-## Scripts
+`NEXT_PUBLIC_*` values are browser-visible and generally fixed when Next.js
+builds client code. Never place secrets there; rebuild when public values change.
+The dashboard/account actions receive the validated identity origin from the
+server. See [Next.js environment variables](https://nextjs.org/docs/15/app/guides/environment-variables).
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+SLJ Gateway encountered `invalid_scope` when the older starter requested `read`.
+Empty scope deliberately remains an explicit `scope: undefined` in provider
+config, avoiding an underlying default `openid` scope. Tests inspect the real
+NextAuth-generated request so refactors cannot silently change this contract.
 
-## Deployment
+## Authentication and server access
 
-### Vercel (Recommended)
+Provider ID `usersau` uses `/oauth/authorize`, `/oauth/token` and `/api/user`.
+Profiles normalize IDs to string `usersauId` and select a usable HTTP(S) image
+from `avatar`, `image`, then `picture`. Missing/invalid identities are rejected.
 
-This project is optimized for Vercel deployment. See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed instructions.
+The JWT and browser session contain only identity/profile/session fields. OAuth
+access/refresh tokens are not retained or returned. Legacy token fields are
+removed when a JWT is updated. The starter does not call provider APIs after
+login and therefore does not need token refresh/storage/revocation features.
 
-**Quick Deploy:**
+`getAuthorizedSession()` in `src/lib/server-auth.ts` checks a server session and
+the current ID policy on each call. Dashboard layout **and page** use it via
+`requireUser()`, while `/api/profile` independently returns 401/403 for rejected
+requests. Updating the allowlist rejects old sessions on subsequent server
+checks. Middleware only improves navigation and matches `/dashboard/:path*`.
 
-1. Fork this repository
-1. Push your code to GitHub
-1. Connect your repository to Vercel
-1. Set environment variables (see [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md))
-1. Update OAuth redirect URI in Usersau console
-1. Deploy!
+For every new private Route Handler, Server Action or data read/write, call the
+server helper and enforce the application's resource/role/tenant policy before
+accessing data. The client `ProtectedRoute` is a presentation wrapper, not an
+authorization boundary. See [NextAuth server sessions](https://next-auth.js.org/configuration/nextjs)
+and [Next.js authorization](https://nextjs.org/docs/15/app/guides/authentication).
 
-### Other Platforms
+Login preserves same-origin return path/query and rejects external/encoded
+redirect tricks and auth/API loops. Errors show safe messages, configuration
+variable names and retry controls without credentials or raw provider responses.
 
-The application can be deployed to any platform that supports Node.js:
+Account links open the provider's `/account`. Sign-out awaits local NextAuth
+sign-out before visiting provider `/logout`, with retry on failure. This clears
+the two sessions; it does not invent provider logout-return or revocation APIs.
 
-- Netlify
-- Railway
-- Heroku
-- DigitalOcean App Platform
+## Files and commands
 
-Make sure to:
-1. Set all environment variables
-2. Update `NEXTAUTH_URL` to your production domain
-3. Update OAuth redirect URI in Usersau console
+| Path | Responsibility |
+| --- | --- |
+| `src/lib/auth.ts` | Lazy validated NextAuth v4 options, provider and callbacks |
+| `src/lib/auth-config.ts` | Shared strict env validation |
+| `src/lib/auth-policy.ts` / `server-auth.ts` | Profile/identity policy and server access enforcement |
+| `src/lib/auth-urls.ts` | Safe callbacks and route-boundary matching |
+| `src/app/api/profile/route.ts` | Protected server API example |
+| `src/types/next-auth.d.ts` | Session, User and JWT types |
+| `src/app/globals.css` | Tailwind 4 theme and local system font stack |
+| `tests/` / `integration/` | Unit/security and production-server checks |
 
-## Contributing
+| Command | Purpose |
+| --- | --- |
+| `npm ci` / `npm run setup` | Reproducible install / safe initial private env creation |
+| `npm run dev` | Validate development config and start Turbopack |
+| `npm run lint` / `npm run type-check` | Direct ESLint with zero warnings / TypeScript |
+| `npm test` | Unit/security regression tests; no real credentials needed |
+| `npm run check` | Lint, types and unit tests |
+| `npm run build:check` | Load production Next.js env files and validate without printing values |
+| `npm run build` | Validate configuration and build; no remote font download required |
+| `npm run test:integration` | Start the built production server with non-secret fixtures and exercise access/session/OAuth request checks |
+| `npm run start` | Run the previously built Next.js app; inject its production env |
+| `npm audit --audit-level=low` | Audit both production and development dependency vulnerabilities |
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+The integration test requires a successful build first and a local listening
+socket. CI runs audit, checks, production build and integration tests with
+non-secret fixtures. See [verification details](docs/READINESS.md).
 
-## License
+## Contributing and delivery
 
-This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Use a feature branch, commit and push task changes, and open/update a PR with the
+problem, behavior and verification outcomes. Fixes to both this starter and a
+consumer need a PR link for **each** repo. Pushing a branch alone is not delivery.
+Merging a PR does not authorize production deployment.
 
-## Support
+## License and support
 
-For support, please contact [opensource@users.au](mailto:opensource@users.au) or create an issue in the repository. 
+[MIT](https://opensource.org/licenses/MIT). Contact
+[opensource@users.au](mailto:opensource@users.au) or open a GitHub issue.

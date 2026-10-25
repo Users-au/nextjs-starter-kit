@@ -1,0 +1,33 @@
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      NEXTAUTH_URL: https://app.users.test
+      NEXTAUTH_SECRET: ci-only-nonsecret-fixture-with-more-than-32-characters
+      USERSAU_HOST: https://identity.users.test
+      NEXT_PUBLIC_USERSAU_HOST: https://identity.users.test
+      USERSAU_CLIENT_ID: ci-client
+      USERSAU_CLIENT_SECRET: ci-only-nonsecret-client-fixture
+      USERSAU_ACCESS_MODE: allowlist
+      USERSAU_ALLOWED_USER_IDS: "42"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test:integration

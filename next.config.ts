@@ -4,9 +4,6 @@ const nextConfig: NextConfig = {
   // Optimize for Vercel deployment
   output: 'standalone',
   
-  // External packages configuration
-  serverExternalPackages: ['next-auth'],
-  
   // Security headers
   async headers() {
     return [
@@ -23,7 +20,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
+            value: 'strict-origin-when-cross-origin',
           },
         ],
       },

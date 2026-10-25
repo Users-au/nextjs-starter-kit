@@ -1,59 +1,67 @@
 import type { AuthOptions } from "next-auth"
-import type { JWT } from "next-auth/jwt"
+import { authEnvironment, type AuthEnvironment } from "./auth-config"
+import { identityAllowed, normalizeProfile } from "./auth-policy"
+import { safeCallbackUrl } from "./auth-urls"
 
-const usersauScope = process.env.USERSAU_SCOPE?.trim() || undefined
-
-// Define Usersau OAuth provider
-const UsersauProvider = {
-  id: "usersau",
-  name: "Usersau",
-  type: "oauth" as const,
-  authorization: {
-    url: `${process.env.USERSAU_HOST}/oauth/authorize`,
-    params: {
-      response_type: "code",
-      scope: usersauScope,
+export function createAuthOptions(env: AuthEnvironment): AuthOptions {
+  const config = authEnvironment(env)
+  return {
+    secret: config.secret,
+    providers: [{
+      id: "usersau",
+      name: "Users.au",
+      type: "oauth",
+      authorization: {
+        url: `${config.identityOrigin}/oauth/authorize`,
+        params: { response_type: "code", scope: config.scope },
+      },
+      checks: ["state"],
+      token: `${config.identityOrigin}/oauth/token`,
+      userinfo: `${config.identityOrigin}/api/user`,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      profile: normalizeProfile,
+    }],
+    pages: { signIn: "/auth/login", error: "/auth/login" },
+    session: { strategy: "jwt" },
+    callbacks: {
+      async signIn({ user }) {
+        return identityAllowed(user.usersauId, env)
+      },
+      async jwt({ token, user }) {
+        // Project only identity/session fields; discard legacy or incoming OAuth tokens.
+        return {
+          sub: user?.id ?? token.sub,
+          name: user?.name ?? token.name,
+          email: user?.email ?? token.email,
+          picture: user?.image ?? token.picture,
+          usersauId: user?.usersauId ?? token.usersauId,
+          iat: token.iat,
+          exp: token.exp,
+          jti: token.jti,
+        }
+      },
+      async session({ session, token }) {
+        return {
+          expires: session.expires,
+          user: {
+            name: token.name,
+            email: token.email,
+            image: token.picture,
+            usersauId: token.usersauId,
+          },
+        }
+      },
+      async redirect({ url }) {
+        return `${config.appOrigin}${safeCallbackUrl(url, config.appOrigin)}`
+      },
     },
-  },
-  token: `${process.env.USERSAU_HOST}/oauth/token`,
-  userinfo: `${process.env.USERSAU_HOST}/api/user`,
-  clientId: process.env.USERSAU_CLIENT_ID,
-  clientSecret: process.env.USERSAU_CLIENT_SECRET,
-  profile(profile: any) {
-    return {
-      id: profile.id.toString(),
-      name: profile.name,
-      email: profile.email,
-      image: profile.avatar ?? profile.image ?? profile.picture ?? null,
-      usersauId: profile.id.toString(),
-    }
-  },
+    // Auth errors are intentionally reduced to codes. Never log raw token responses.
+    logger: { error: code => console.error(`[auth] ${code}`), warn: code => console.warn(`[auth] ${code}`) },
+  }
 }
 
-export const authOptions: AuthOptions = {
-  providers: [UsersauProvider],
-  pages: {
-    signIn: "/auth/login",
-  },
-  callbacks: {
-    async jwt({ token, account, profile }: { token: JWT; account?: any; profile?: any }) {
-      // Persist the OAuth access_token to the token right after signin
-      if (account) {
-        token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
-        token.usersauId = profile?.id?.toString()
-      }
-      return token
-    },
-    async session({ session, token }: { session: any; token: JWT }) {
-      // Send properties to the client
-      session.accessToken = token.accessToken
-      session.refreshToken = token.refreshToken
-      session.user.usersauId = token.usersauId
-      return session
-    },
-  },
-  session: {
-    strategy: "jwt",
-  },
-} 
+// Lazy validation allows the login page to show configuration names without secrets.
+export function getAuthOptions() {
+  return createAuthOptions(process.env)
+}
