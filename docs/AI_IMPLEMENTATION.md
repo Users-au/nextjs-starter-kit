@@ -13,7 +13,8 @@ starter, regardless of its product domain or deployment architecture:
 | Concern | Required behavior |
 | --- | --- |
 | OAuth scopes | Empty `USERSAU_SCOPE` stays explicit `scope: undefined`; request only registered scopes and test the generated authorization request after provider/library refactors. |
-| Sign-out | Await NextAuth sign-out, then navigate to the same identity origin's `/logout`. Check the next login in a real browser. |
+| Public endpoints | Use `/auth/usersau/redirect`, `/auth/usersau/callback` and `/logout`. Register the canonical callback and use it in both authorization and token exchange, preserving state checks. |
+| Sign-out | GET `/logout` displays confirmation; only a CSRF-verified POST clears NextAuth before provider logout. Check the next login in a real browser. |
 | Profile data | Validate string `usersauId`, apply usable `avatar`/`image`/`picture` fallbacks and retain profile/account UI. |
 | Authorization | Use the server admission helper and extend it with application roles/resource ownership; never grant administrator access solely on login or email. |
 | Return URLs | Retain same-origin path/query; public callback registration and the actual generated `redirect_uri` must agree. |
@@ -57,6 +58,9 @@ assuming a particular project architecture.
    generated callback in that topology. Public bundle values are set before
    build; real private values are injected at runtime. Follow the
    [deployment guide](../VERCEL_DEPLOYMENT.md) and target app's operational rules.
+   Verify the actual function runtime, not just the build version or Ready state.
+   Do not automatically enable the managed-runtime patch-lag exception; it needs
+   explicit operator acceptance of the documented risk.
 7. **Verify behavior.** Run lockfile install, audit, checks, production build and
    server integration. Add tests for new membership/role/write/tenant controls,
    redirects and missing-profile states. Complete real browser sign-in/out with

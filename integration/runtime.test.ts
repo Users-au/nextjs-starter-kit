@@ -71,6 +71,29 @@ test("production server protects data independently of middleware and returns mi
     assert.equal((await request("/api/profile", { headers: { cookie: `${cookieName}=tampered` } })).status, 401)
     const spoofedMiddleware = await request("/api/profile", { headers: { "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware" } })
     assert.equal(spoofedMiddleware.status, 401)
+    const publicRedirect = await request("/auth/usersau/redirect?callbackUrl=/dashboard")
+    assert.equal(publicRedirect.status, 200)
+    assert.match(await publicRedirect.text(), /Redirecting to Users.au/)
+    const invalidCallback = await request("/auth/usersau/callback?code=invalid&state=forged")
+    assert.ok([302, 303, 307].includes(invalidCallback.status))
+    const callbackError = new URL(invalidCallback.headers.get("location")!)
+    assert.equal(callbackError.pathname, "/api/auth/error")
+    assert.equal(callbackError.searchParams.get("error"), "OAuthCallback")
+    const errorScreen = await request(`${callbackError.pathname}${callbackError.search}`)
+    const signInError = new URL(errorScreen.headers.get("location")!)
+    assert.equal(signInError.pathname, "/api/auth/signin")
+    const loginScreen = await request(`${signInError.pathname}${signInError.search}`)
+    assert.ok(loginScreen.headers.get("location")?.includes("/auth/login"))
+    assert.ok(!invalidCallback.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && !cookie.includes("Max-Age=0")))
+
+    const logoutConfirmation = await request("/logout", { headers })
+    assert.equal(logoutConfirmation.status, 200)
+    const confirmationHtml = await logoutConfirmation.text()
+    assert.match(confirmationHtml, /form action="\/logout" method="post"/)
+    assert.ok(!logoutConfirmation.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`)))
+    assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "" })).status, 403)
+    assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "csrfToken=forged" })).status, 403)
+    assert.equal((await request("/api/profile", { headers })).status, 200)
 
     // Inspect a real NextAuth-generated OAuth request; this does not contact Users.au.
     const csrfResponse = await request("/api/auth/csrf")
@@ -84,16 +107,27 @@ test("production server protects data independently of middleware and returns mi
     const authorization = new URL((await signIn.json()).url)
     assert.equal(authorization.origin, env.USERSAU_HOST)
     assert.equal(authorization.pathname, "/oauth/authorize")
-    assert.equal(authorization.searchParams.get("redirect_uri"), `${env.NEXTAUTH_URL}/api/auth/callback/usersau`)
+    assert.equal(authorization.searchParams.get("redirect_uri"), `${env.NEXTAUTH_URL}/auth/usersau/callback`)
     assert.equal(authorization.searchParams.get("response_type"), "code")
     assert.ok(authorization.searchParams.get("state"))
     assert.ok(!authorization.searchParams.get("scope"))
-    const signOut = await request("/api/auth/signout", {
-      method: "POST", headers: { cookie: `${csrfCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ csrfToken, callbackUrl: "/dashboard", json: "true" }),
+    const signOut = await request("/logout", {
+      method: "POST", headers: { cookie: `${csrfCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({ csrfToken }),
     })
     assert.equal(signOut.status, 200)
+    assert.deepEqual(await signOut.json(), { url: `${env.USERSAU_HOST}/logout` })
     assert.ok(signOut.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && cookie.includes("Max-Age=0")))
+    const nativeCsrf = /name="csrfToken" value="([a-zA-Z0-9._-]+)"/.exec(confirmationHtml)?.[1]
+    assert.ok(nativeCsrf)
+    const nativeCookies = logoutConfirmation.headers.getSetCookie().map(cookie => cookie.split(";")[0]).join("; ")
+    const nativeSignOut = await request("/logout", {
+      method: "POST", headers: { cookie: `${nativeCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ csrfToken: nativeCsrf }),
+    })
+    assert.equal(nativeSignOut.status, 303)
+    assert.equal(nativeSignOut.headers.get("location"), `${env.USERSAU_HOST}/logout`)
+    assert.ok(nativeSignOut.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && cookie.includes("Max-Age=0")))
   } finally {
     child.kill("SIGTERM")
     await Promise.race([once(child, "exit"), new Promise(done => setTimeout(done, 5000))])

@@ -2,9 +2,11 @@ import type { AuthOptions } from "next-auth"
 import { authEnvironment, type AuthEnvironment } from "./auth-config"
 import { identityAllowed, normalizeProfile } from "./auth-policy"
 import { safeCallbackUrl } from "./auth-urls"
+import { authPaths } from "./auth-paths"
 
 export function createAuthOptions(env: AuthEnvironment): AuthOptions {
   const config = authEnvironment(env)
+  const callbackUrl = `${config.appOrigin}${authPaths.callback}`
   return {
     secret: config.secret,
     providers: [{
@@ -13,16 +15,23 @@ export function createAuthOptions(env: AuthEnvironment): AuthOptions {
       type: "oauth",
       authorization: {
         url: `${config.identityOrigin}/oauth/authorize`,
-        params: { response_type: "code", scope: config.scope },
+        params: { response_type: "code", scope: config.scope, redirect_uri: callbackUrl },
       },
       checks: ["state"],
-      token: `${config.identityOrigin}/oauth/token`,
+      client: { redirect_uris: [callbackUrl] },
+      token: {
+        url: `${config.identityOrigin}/oauth/token`,
+        async request({ client, params, checks }) {
+          // Keep state/PKCE checks and the token exchange on the same registered URI.
+          return { tokens: await client.oauthCallback(callbackUrl, params, checks) }
+        },
+      },
       userinfo: `${config.identityOrigin}/api/user`,
       clientId: config.clientId,
       clientSecret: config.clientSecret,
       profile: normalizeProfile,
     }],
-    pages: { signIn: "/auth/login", error: "/auth/login" },
+    pages: { signIn: "/auth/login", error: "/auth/login", signOut: authPaths.logout },
     session: { strategy: "jwt" },
     callbacks: {
       async signIn({ user }) {

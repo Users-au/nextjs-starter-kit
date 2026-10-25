@@ -7,7 +7,8 @@ does not establish production readiness.
 
 ## Authentication contract
 
-- Keep provider ID `usersau` and `/api/auth/callback/usersau` unless a migration
+- Keep provider ID `usersau` and the public `/auth/usersau/redirect`,
+  `/auth/usersau/callback` and `/logout` endpoints unless a migration
   updates all consumers and OAuth registrations.
 - Leave `USERSAU_SCOPE` empty by default. Preserve explicit `scope: undefined`
   when empty; do not substitute `read`, `openid` or an omitted key without
@@ -19,6 +20,9 @@ does not establish production readiness.
   account management at the configured provider's `/account`.
 - Clear NextAuth before navigating to Users.au `/logout`. Do not invent logout
   return parameters, token revocation or refresh behavior.
+- Preserve CSRF checks on sign-in and sign-out. GET `/logout` must not clear a
+  session. Pass OAuth state checks and the canonical callback URI to the token
+  exchange; changing an authorization URL alone is insufficient.
 - Enforce identity, membership, ownership and read/write permissions at server
   data access, Route Handlers and Server Actions. Middleware excludes `/api`;
   client wrappers only help presentation/navigation.
@@ -44,6 +48,10 @@ does not establish production readiness.
   gaps; a documented requirement is not an implemented feature.
 - Run checks appropriate to the diff and report exact outcomes, existing
   failures and unverified live OAuth steps. Do not disable checks to pass builds.
+- Keep runtime patch validation strict by default. Never enable
+  `USERSAU_ALLOW_MANAGED_PATCH_LAG` automatically; it requires explicit operator
+  acceptance of the documented runtime risk and removal after the provider's
+  patch rollout. Local installs, builds and CI remain strict.
 - Commit, push a feature branch, and create/update a PR for every changed repo.
   Deliver links, summary and verification; pushing alone is not completion.
   Preserve unrelated work and secrets.

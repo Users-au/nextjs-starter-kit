@@ -59,9 +59,35 @@ Import the repository. For a monorepo, select the Next.js workspace root and
 adapt workspace install/build commands. Current `vercel.json` uses `npm ci`,
 `npm run build`, `.next` output and `npm run dev` for development. The build
 command includes strict production env validation and cannot bypass it.
-Select Node.js 24.x with a patch at least 24.22.1 (or supported 22.x at least
-22.23.4); an older hosting runtime fails startup rather than silently ignoring
-the security baseline. CI follows `.nvmrc`.
+Select Node.js 24.x (or supported 22.x). Vercel selects the patch version; a
+project setting or `engines` range cannot pin its function patch. The actual
+function must meet 24.22.1 / 22.23.4, otherwise strict startup validation fails.
+The build environment can be newer than the serving function. CI follows `.nvmrc`.
+
+### Managed runtime patch rollouts
+
+A successful Vercel build and Ready status do not prove the function can start.
+Request the application and inspect runtime logs. Startup diagnostics include
+the actual Node.js version when it is below the security baseline. Test another
+supported major only if its managed runtime is patched; do not lower the
+application's minimum patch to make a deployment pass.
+
+For the October 2026 release, [Vercel's advisory](https://vercel.com/kb/bulletin/node-js-security-advisory)
+describes automatic WAF mitigation and a managed runtime patch rollout. The WAF
+does not replace the runtime patch and does not cover vulnerable processing of
+responses fetched by an application. Review the current advisory and actual
+runtime before deciding whether to serve traffic during any rollout.
+
+The default is to retain strict startup validation and wait for a patched
+function runtime. An operator who explicitly accepts the residual risk can
+temporarily set `USERSAU_ALLOW_MANAGED_PATCH_LAG=true` in the Vercel environment
+and redeploy. This exception applies only to server instrumentation when
+`VERCEL=1` on Node.js 22.x/24.x, logs a warning with the actual version, and never
+bypasses local install, build or CI runtime checks. It is not a security fix.
+AI assistants must obtain explicit operator acceptance before enabling it.
+Remove the variable and redeploy once the provider's patched runtime is
+available, then verify startup without the exception. Do not copy this setting
+into normal application defaults or use it on self-managed servers.
 
 ### Configure Production before deploying
 
@@ -107,8 +133,19 @@ read a separate `USERSAU_REDIRECT_URI` variable.
 Register the exact public callback in Users.au:
 
 ```text
-https://app.your-domain.com/api/auth/callback/usersau
+https://app.your-domain.com/auth/usersau/callback
 ```
+
+The public login entry is `https://app.your-domain.com/auth/usersau/redirect`
+and the application logout endpoint is `https://app.your-domain.com/logout`.
+The login entry starts a CSRF-protected browser flow. Logout GET displays a
+confirmation form; POST verifies CSRF, clears the application session and
+redirects to the configured identity origin's `/logout`.
+
+When upgrading from the former `/api/auth/callback/usersau` registration,
+coordinate the new registration and deployment. Both authorization and token
+exchange must use `/auth/usersau/callback`; an HTTP redirect from the old route
+alone does not migrate an OAuth registration.
 
 Scope Development/Preview/Production env separately, preferably with separate
 OAuth registrations/credentials. Use a stable preview domain with its exact
@@ -125,13 +162,21 @@ domain changes. Verify the actual generated `redirect_uri` after any migration.
 After configuration is complete:
 
 ```bash
-vercel deploy --prod --logs --scope my-team
+vercel deploy --prod --skip-domain --logs --scope my-team
 vercel project inspect my-app --scope my-team
 vercel logs --environment production --query 'level:error' --since 5m --scope my-team
 ```
 
-Check the deployment's Ready state and actual production alias. Verify the
-stable production hostname in a browser; preview or deployment-specific URLs
+This creates a candidate with Production configuration without moving the
+stable domain. Inspect and test the returned deployment URL using authenticated
+`vercel curl / --deployment <deployment-url>` where protection applies. Check
+the actual function response and logs, then promote the verified candidate:
+
+```bash
+vercel promote <deployment-url> --scope my-team --yes
+```
+
+Verify the stable production hostname in a browser; preview or deployment-specific URLs
 may be protected by Vercel Authentication independently of Users.au login. Do
 not disable deployment protection to work around an application auth problem.
 Use authenticated Vercel CLI inspection where protection applies.
