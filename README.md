@@ -5,7 +5,7 @@ profile API, account management and sign-out. Includes typed minimal sessions,
 server-side identity admission, safe login return URLs and regression checks.
 
 - [AI implementation guide](docs/AI_IMPLEMENTATION.md): workflow, integration
-  contracts, downstream lessons and a copyable implementation prompt.
+  requirements, configuration contracts and a copyable implementation prompt.
 - [Security and verification](docs/READINESS.md): implemented controls, how to
   verify them, and boundaries that business applications must extend.
 - [Vercel deployment](VERCEL_DEPLOYMENT.md) and [agent instructions](AGENTS.md).
@@ -94,10 +94,11 @@ builds client code. Never place secrets there; rebuild when public values change
 The dashboard/account actions receive the validated identity origin from the
 server. See [Next.js environment variables](https://nextjs.org/docs/15/app/guides/environment-variables).
 
-SLJ Gateway encountered `invalid_scope` when the older starter requested `read`.
-Empty scope deliberately remains an explicit `scope: undefined` in provider
-config, avoiding an underlying default `openid` scope. Tests inspect the real
-NextAuth-generated request so refactors cannot silently change this contract.
+Requesting a scope that is not configured for the OAuth application can cause an
+`invalid_scope` failure. Empty scope deliberately remains an explicit
+`scope: undefined` in provider config, avoiding an underlying default `openid`
+scope. Tests inspect the real NextAuth-generated request so refactors cannot
+silently change this contract.
 
 ## Authentication and server access
 
