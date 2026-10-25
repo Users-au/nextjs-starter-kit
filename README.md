@@ -4,6 +4,52 @@ A Next.js App Router foundation for Users.au login, a protected dashboard and
 profile API, account management and sign-out. Includes typed minimal sessions,
 server-side identity admission, safe login return URLs and regression checks.
 
+## Integrate Users.au into your app with AI
+
+> [!TIP]
+> **Copy the prompt below into your AI coding assistant with your application
+> repository open.** It guides the assistant through implementation, configuration
+> and verification in your existing app.
+
+```text
+Integrate Users.au OAuth authentication into this application using
+https://github.com/Users-au/nextjs-starter-kit as the reference implementation.
+Read its README.md, AGENTS.md, docs/AI_IMPLEMENTATION.md and docs/READINESS.md,
+then inspect this app's framework, auth, routes, environment and deployment setup.
+Implement the integration in this app, preserving its existing UI, features and
+conventions. Check compatibility; do not silently migrate its framework/auth stack
+or replace the application with the starter's demo.
+
+Add sign-in, callback handling, protected pages/APIs, profile/avatar display,
+an account-management link and local sign-out followed by Users.au logout.
+Keep OAuth scopes empty unless explicitly registered, normalize stable user IDs,
+keep OAuth tokens out of browser sessions, validate same-origin return URLs and
+enforce this app's membership/role/resource rules on the server.
+
+Infer app URLs, routes and deployment details from existing configuration.
+Keep the public app origin separate from the Users.au identity origin. For
+NextAuth integrations, preserve provider ID usersau and its callback path
+/api/auth/callback/usersau. Update env examples and give me the exact callback
+URLs to register in Users.au for each environment. Preserve existing secrets;
+never invent, commit or print credentials. Ask only for required information or
+access-policy decisions that cannot be resolved from the repository.
+
+Complete the code, configuration and setup documentation. Run the project's
+checks, dependency audit, build and relevant auth/access regression tests.
+Verify real sign-in/out when test credentials are available; explicitly identify
+any remaining setup or unverified live steps. Commit and open/update a PR using
+the project's contribution workflow, and provide the PR link and check results.
+```
+
+Use a registered Users.au OAuth application and supply its credentials through
+your app's private environment configuration. If credentials are not yet
+available, the assistant can prepare the integration and registration steps;
+live authentication verification requires those credentials. For application
+requirements you want to specify upfront, use the
+[detailed implementation prompt](docs/AI_IMPLEMENTATION.md#copyable-implementation-prompt).
+
+## Documentation
+
 - [AI implementation guide](docs/AI_IMPLEMENTATION.md): workflow, integration
   requirements, configuration contracts and a copyable implementation prompt.
 - [Security and verification](docs/READINESS.md): implemented controls, how to
