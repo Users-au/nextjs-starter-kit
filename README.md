@@ -94,10 +94,18 @@ by default. See the [managed-host patch rollout policy](VERCEL_DEPLOYMENT.md#man
 before considering any temporary Vercel runtime exception.
 These minimums include the [October 2026 runtime security fixes](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
 Dependencies include
-Next.js 15.5.28, NextAuth 4.24.15, React 19.3.1, TypeScript 5 and Tailwind CSS 4.
+Next.js 15.5.28, NextAuth 4.24.15, React 19.3.1, TypeScript 7 (with the TypeScript 6 API compatibility package) and Tailwind CSS 4.
 The npm lockfile records exact versions. Use NextAuth **v4** APIs with this code;
 Auth.js v5 is a separate migration. Review versions and security advisories when
 updating dependencies rather than treating this snapshot as permanently secure.
+
+TypeScript 7 supplies the native `tsc` executable through the
+`@typescript/native` npm alias. The `typescript` alias points to Microsoft's
+`@typescript/typescript6` compatibility package so ESLint and Next.js can use
+the supported JavaScript compiler API. This follows Microsoft's
+[side-by-side installation guide](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
+`npm run type-check` runs both `tsc` and `tsc6`; production build checks remain
+enabled. Keep these aliases together when updating the compiler/tooling.
 
 ## Local setup
 
@@ -248,7 +256,7 @@ This clears the two sessions without inventing token revocation APIs. See the
 | --- | --- |
 | `npm ci` / `npm run setup` | Reproducible install / safe initial private env creation |
 | `npm run dev` | Validate development config and start Turbopack |
-| `npm run lint` / `npm run type-check` | Direct ESLint with zero warnings / TypeScript |
+| `npm run lint` / `npm run type-check` | Direct ESLint with zero warnings / TypeScript 7 and 6 compatibility checks |
 | `npm test` | Unit/security regression tests; no real credentials needed |
 | `npm run check` | Lint, types and unit tests |
 | `npm run build:check` | Load production Next.js env files and validate without printing values |
