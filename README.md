@@ -1,5 +1,12 @@
 # Next.js Usersau Starter Kit
 
+[![Checks](https://github.com/Users-au/nextjs-starter-kit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Users-au/nextjs-starter-kit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-22.23.4%2B%20%7C%2024.22.1%2B-339933?logo=nodedotjs&logoColor=white)](#versions-and-requirements)
+[![GitHub issues](https://img.shields.io/github/issues/Users-au/nextjs-starter-kit)](https://github.com/Users-au/nextjs-starter-kit/issues)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Users-au/nextjs-starter-kit/pulls)
+[![Live demo](https://img.shields.io/badge/demo-Vercel-black?logo=vercel)](https://usersau-nextjs-starter.vercel.app)
+
 A Next.js App Router foundation for Users.au login, a protected dashboard and
 profile API, account management and sign-out. Includes typed minimal sessions,
 server-side identity admission, safe login return URLs and regression checks.
@@ -47,6 +54,16 @@ available, the assistant can prepare the integration and registration steps;
 live authentication verification requires those credentials. For application
 requirements you want to specify upfront, use the
 [detailed implementation prompt](docs/AI_IMPLEMENTATION.md#copyable-implementation-prompt).
+
+## Live Vercel demo
+
+Try the **[live Users.au starter demo](https://usersau-nextjs-starter.vercel.app)**
+to explore sign-in, the protected dashboard, account management and sign-out.
+
+[![Users.au starter sign-in screen deployed on Vercel](docs/images/vercel-demo.jpg)](https://usersau-nextjs-starter.vercel.app)
+
+Deploy your own app with its own OAuth registration and environment settings;
+see the [Vercel deployment guide](VERCEL_DEPLOYMENT.md).
 
 ## Documentation
 
