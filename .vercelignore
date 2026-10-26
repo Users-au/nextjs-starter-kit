@@ -1,0 +1,18 @@
+# Keep local credentials and generated files out of CLI source uploads.
+# Vercel CLI does not use .gitignore as its deployment manifest.
+.env*
+*.pem
+*.key
+.git
+.vercel
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

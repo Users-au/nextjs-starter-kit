@@ -29,7 +29,7 @@ enforce this app's membership/role/resource rules on the server.
 Infer app URLs, routes and deployment details from existing configuration.
 Keep the public app origin separate from the Users.au identity origin. For
 NextAuth integrations, preserve provider ID usersau and its callback path
-/api/auth/callback/usersau. Update env examples and give me the exact callback
+/auth/usersau/callback. Update env examples and give me the exact callback
 URLs to register in Users.au for each environment. Preserve existing secrets;
 never invent, commit or print credentials. Ask only for required information or
 access-policy decisions that cannot be resolved from the repository.
@@ -59,7 +59,9 @@ requirements you want to specify upfront, use the
 ## Versions and requirements
 
 Use patched Node.js 24.22.1+ (24.x) or 22.23.4+ (22.x); `.nvmrc` and CI use
-24.22.1. Older/unsupported runtimes fail installation, startup and build checks.
+24.22.1. Older/unsupported runtimes fail installation, startup and build checks
+by default. See the [managed-host patch rollout policy](VERCEL_DEPLOYMENT.md#managed-runtime-patch-rollouts)
+before considering any temporary Vercel runtime exception.
 These minimums include the [October 2026 runtime security fixes](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
 Dependencies include
 Next.js 15.5.28, NextAuth 4.24.15, React 19.3.1, TypeScript 5 and Tailwind CSS 4.
@@ -106,7 +108,7 @@ In the [Users.au console](https://my.users.au), open the project's Integration >
 OAuth Management, create an OAuth application and register exactly:
 
 ```text
-http://localhost:3000/api/auth/callback/usersau
+http://localhost:3000/auth/usersau/callback
 ```
 
 ```bash
@@ -131,7 +133,7 @@ origins. Generate/register separate credentials and callbacks per environment.
 | `NEXT_PUBLIC_USERSAU_HOST` | Public identity origin, required to match `USERSAU_HOST`; never the app origin. |
 | `NEXT_PUBLIC_APP_NAME` | Browser-visible display name. Also customize static metadata in `src/app/layout.tsx`. |
 
-The registered callback is `${NEXTAUTH_URL}/api/auth/callback/usersau`. Origin
+The registered callback is `${NEXTAUTH_URL}/auth/usersau/callback`. Origin
 validation rejects placeholders, embedded credentials and unsafe URLs; HTTP
 loopback is allowed only outside production. Trailing `/` is normalized.
 
@@ -173,9 +175,31 @@ Login preserves same-origin return path/query and rejects external/encoded
 redirect tricks and auth/API loops. Errors show safe messages, configuration
 variable names and retry controls without credentials or raw provider responses.
 
+The public authentication endpoints are:
+
+| Endpoint | Behavior |
+| --- | --- |
+| `/auth/usersau/redirect` | Starts sign-in automatically in the browser using NextAuth's CSRF-protected POST. Accepts a validated local `callbackUrl`; JavaScript is required. |
+| `/auth/usersau/callback` | Receives Users.au's OAuth response. Register this exact app URL; authorization and token exchange use the same URI and verify OAuth state. |
+| `/logout` | Starts sign-out automatically with no confirmation. A CSRF-verified POST clears the local session, visits Users.au `/logout?continue=…`, then returns to the app's `/auth/login`. JavaScript is required for the GET entry. |
+
+NextAuth's internal `/api/auth/*` routes still provide sessions, CSRF and the
+sign-in engine. When upgrading an older starter, replace the registered
+`/api/auth/callback/usersau` callback with `/auth/usersau/callback` and redeploy
+the application together. Do not merely add a redirect between callback URLs:
+the token exchange must use the originally registered URI.
+
 Account links open the provider's `/account`. Sign-out awaits local NextAuth
-sign-out before visiting provider `/logout`, with retry on failure. This clears
-the two sessions; it does not invent provider logout-return or revocation APIs.
+sign-out before visiting provider `/logout`, with retry on failure. The verified
+Users.au `continue` parameter returns to the configured app's `/auth/login`;
+request input cannot change this destination. The automatic GET entry accepts
+same-origin or direct browser navigation and rejects cross-site initiation.
+If the identity service returns to the registered app `/logout` instead, a
+short-lived HttpOnly cookie completes that return at `/auth/login` without
+restarting remote logout. The return shortcut is unavailable while a local
+session cookie remains.
+This clears the two sessions without inventing token revocation APIs. See the
+[official Users.au logout implementation](https://github.com/Users-au/laravel-client/blob/main/src/Http/Controllers/AuthController.php).
 
 ## Files and commands
 

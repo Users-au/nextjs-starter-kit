@@ -5,6 +5,8 @@ import { spawn } from "node:child_process"
 import { once } from "node:events"
 import { resolve } from "node:path"
 import { encode } from "next-auth/jwt"
+import { createHash } from "node:crypto"
+import { request as nodeRequest } from "node:http"
 
 test("production server protects data independently of middleware and returns minimal sessions", { timeout: 120_000 }, async () => {
   const listener = createServer()
@@ -71,6 +73,52 @@ test("production server protects data independently of middleware and returns mi
     assert.equal((await request("/api/profile", { headers: { cookie: `${cookieName}=tampered` } })).status, 401)
     const spoofedMiddleware = await request("/api/profile", { headers: { "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware" } })
     assert.equal(spoofedMiddleware.status, 401)
+    const publicRedirect = await request("/auth/usersau/redirect?callbackUrl=/dashboard")
+    assert.equal(publicRedirect.status, 200)
+    assert.match(await publicRedirect.text(), /Redirecting to Users.au/)
+    const invalidCallback = await request("/auth/usersau/callback?code=invalid&state=forged")
+    assert.ok([302, 303, 307].includes(invalidCallback.status))
+    const callbackError = new URL(invalidCallback.headers.get("location")!)
+    assert.equal(callbackError.pathname, "/api/auth/error")
+    assert.equal(callbackError.searchParams.get("error"), "OAuthCallback")
+    const errorScreen = await request(`${callbackError.pathname}${callbackError.search}`)
+    const signInError = new URL(errorScreen.headers.get("location")!)
+    assert.equal(signInError.pathname, "/api/auth/signin")
+    const loginScreen = await request(`${signInError.pathname}${signInError.search}`)
+    assert.ok(loginScreen.headers.get("location")?.includes("/auth/login"))
+    assert.ok(!invalidCallback.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && !cookie.includes("Max-Age=0")))
+
+    const logoutStart = await request("/logout", { headers: { ...headers, "sec-fetch-site": "same-origin" } })
+    assert.equal(logoutStart.status, 200)
+    const logoutHtml = await logoutStart.text()
+    assert.match(logoutHtml, /form id="logout-form" action="\/logout" method="post"/)
+    assert.doesNotMatch(logoutHtml, /<button|Sign out of this application and your Users.au session\?/)
+    const autoSubmit = /<script>([^<]+)<\/script>/.exec(logoutHtml)?.[1]
+    assert.ok(autoSubmit)
+    assert.match(autoSubmit, /\.requestSubmit\(\)/)
+    const hash = createHash("sha256").update(autoSubmit).digest("base64")
+    assert.ok(logoutStart.headers.get("content-security-policy")?.includes(`script-src 'sha256-${hash}'`))
+    assert.ok(logoutStart.headers.get("content-security-policy")?.includes(`form-action 'self' ${env.USERSAU_HOST}`))
+    assert.ok(!logoutStart.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`)))
+    for (const site of ["cross-site", "same-site"]) {
+      assert.equal((await request("/logout", { headers: { ...headers, "sec-fetch-site": site, "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" } })).status, 403)
+    }
+    assert.equal((await request("/logout", { headers })).status, 403)
+    // fetch() overwrites Sec-Fetch-Mode with "cors"; use raw HTTP for navigation metadata.
+    const directStatus = await new Promise<number>((done, reject) => {
+      const outgoing = nodeRequest({ hostname: "127.0.0.1", port, path: "/logout", headers: { ...headers, "sec-fetch-site": "none", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" } }, response => {
+        response.resume()
+        done(response.statusCode ?? 0)
+      })
+      outgoing.on("error", reject)
+      outgoing.end()
+    })
+    assert.equal(directStatus, 200)
+    assert.equal((await request("/logout", { headers: { ...headers, "sec-fetch-site": "none" } })).status, 200)
+    assert.equal((await request("/logout", { headers: { ...headers, referer: `${env.NEXTAUTH_URL}/dashboard` } })).status, 200)
+    assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "" })).status, 403)
+    assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "csrfToken=forged" })).status, 403)
+    assert.equal((await request("/api/profile", { headers })).status, 200)
 
     // Inspect a real NextAuth-generated OAuth request; this does not contact Users.au.
     const csrfResponse = await request("/api/auth/csrf")
@@ -84,16 +132,37 @@ test("production server protects data independently of middleware and returns mi
     const authorization = new URL((await signIn.json()).url)
     assert.equal(authorization.origin, env.USERSAU_HOST)
     assert.equal(authorization.pathname, "/oauth/authorize")
-    assert.equal(authorization.searchParams.get("redirect_uri"), `${env.NEXTAUTH_URL}/api/auth/callback/usersau`)
+    assert.equal(authorization.searchParams.get("redirect_uri"), `${env.NEXTAUTH_URL}/auth/usersau/callback`)
     assert.equal(authorization.searchParams.get("response_type"), "code")
     assert.ok(authorization.searchParams.get("state"))
     assert.ok(!authorization.searchParams.get("scope"))
-    const signOut = await request("/api/auth/signout", {
-      method: "POST", headers: { cookie: `${csrfCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ csrfToken, callbackUrl: "/dashboard", json: "true" }),
+    const signOut = await request("/logout", {
+      method: "POST", headers: { cookie: `${csrfCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({ csrfToken }),
     })
     assert.equal(signOut.status, 200)
+    const expectedLogout = new URL("/logout", env.USERSAU_HOST)
+    expectedLogout.searchParams.set("continue", `${env.NEXTAUTH_URL}/auth/login`)
+    assert.deepEqual(await signOut.json(), { url: expectedLogout.toString() })
     assert.ok(signOut.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && cookie.includes("Max-Age=0")))
+    const returnMarker = signOut.headers.getSetCookie().find(cookie => cookie.startsWith("__Host-usersau.logout-return="))
+    assert.ok(returnMarker)
+    assert.ok(returnMarker.includes("HttpOnly") && returnMarker.includes("Secure") && returnMarker.includes("SameSite=Lax") && returnMarker.includes("Max-Age=120"))
+    const completedLogout = await request("/logout", { headers: { cookie: returnMarker.split(";")[0], "sec-fetch-site": "cross-site" } })
+    assert.equal(completedLogout.status, 303)
+    assert.equal(completedLogout.headers.get("location"), `${env.NEXTAUTH_URL}/auth/login`)
+    assert.ok(completedLogout.headers.getSetCookie().some(cookie => cookie.startsWith("__Host-usersau.logout-return=") && cookie.includes("Max-Age=0")))
+    assert.equal((await request("/logout", { headers: { cookie: `${returnMarker.split(";")[0]}; ${cookieName}=${jwt}`, "sec-fetch-site": "cross-site" } })).status, 403)
+    const nativeCsrf = /name="csrfToken" value="([a-zA-Z0-9._-]+)"/.exec(logoutHtml)?.[1]
+    assert.ok(nativeCsrf)
+    const nativeCookies = logoutStart.headers.getSetCookie().map(cookie => cookie.split(";")[0]).join("; ")
+    const nativeSignOut = await request("/logout", {
+      method: "POST", headers: { cookie: `${nativeCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ csrfToken: nativeCsrf, continue: "https://evil.test/", callbackUrl: "https://evil.test/" }),
+    })
+    assert.equal(nativeSignOut.status, 303)
+    assert.equal(nativeSignOut.headers.get("location"), expectedLogout.toString())
+    assert.ok(nativeSignOut.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && cookie.includes("Max-Age=0")))
   } finally {
     child.kill("SIGTERM")
     await Promise.race([once(child, "exit"), new Promise(done => setTimeout(done, 5000))])

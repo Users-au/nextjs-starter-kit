@@ -13,7 +13,8 @@ starter, regardless of its product domain or deployment architecture:
 | Concern | Required behavior |
 | --- | --- |
 | OAuth scopes | Empty `USERSAU_SCOPE` stays explicit `scope: undefined`; request only registered scopes and test the generated authorization request after provider/library refactors. |
-| Sign-out | Await NextAuth sign-out, then navigate to the same identity origin's `/logout`. Check the next login in a real browser. |
+| Public endpoints | Use `/auth/usersau/redirect`, `/auth/usersau/callback` and `/logout`. Register the canonical callback and use it in both authorization and token exchange, preserving state checks. |
+| Sign-out | No confirmation: GET automatically submits a CSRF-verified POST, clears NextAuth, then visits provider `/logout` with `continue` set to the trusted app `/auth/login`. Reject cross-site GET initiation and verify the return/next login in a browser. |
 | Profile data | Validate string `usersauId`, apply usable `avatar`/`image`/`picture` fallbacks and retain profile/account UI. |
 | Authorization | Use the server admission helper and extend it with application roles/resource ownership; never grant administrator access solely on login or email. |
 | Return URLs | Retain same-origin path/query; public callback registration and the actual generated `redirect_uri` must agree. |
@@ -50,13 +51,17 @@ assuming a particular project architecture.
    handling, loading/error/retry states and ordered two-session logout. Do not
    reintroduce OAuth tokens to JWT/browser sessions. Provider API needs require a
    separate server-side storage/expiry/refresh/failure design; do not invent
-   provider logout-return or revocation parameters.
+   unsupported provider logout-return or revocation parameters. Users.au's
+   verified logout return parameter is `continue`; derive it from the app origin.
 6. **Adapt deployment.** Public `NEXTAUTH_URL` and OAuth registration must use the
    browser-facing HTTPS app origin, not Docker service names. Keep internal API
    URLs private, configure trusted proxy host/protocol forwarding and inspect the
    generated callback in that topology. Public bundle values are set before
    build; real private values are injected at runtime. Follow the
    [deployment guide](../VERCEL_DEPLOYMENT.md) and target app's operational rules.
+   Verify the actual function runtime, not just the build version or Ready state.
+   Do not automatically enable the managed-runtime patch-lag exception; it needs
+   explicit operator acceptance of the documented risk.
 7. **Verify behavior.** Run lockfile install, audit, checks, production build and
    server integration. Add tests for new membership/role/write/tenant controls,
    redirects and missing-profile states. Complete real browser sign-in/out with
