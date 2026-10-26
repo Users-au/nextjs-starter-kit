@@ -1,59 +1,72 @@
-# Next.js Usersau Starter Kit
+<div align="center">
 
-[![Checks](https://github.com/Users-au/nextjs-starter-kit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Users-au/nextjs-starter-kit/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-22.23.4%2B%20%7C%2024.22.1%2B-339933?logo=nodedotjs&logoColor=white)](#versions-and-requirements)
-[![GitHub issues](https://img.shields.io/github/issues/Users-au/nextjs-starter-kit)](https://github.com/Users-au/nextjs-starter-kit/issues)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Users-au/nextjs-starter-kit/pulls)
-[![Live demo](https://img.shields.io/badge/demo-Vercel-black?logo=vercel)](https://usersau-nextjs-starter.vercel.app)
+# Users.au × Next.js Starter Kit
 
-A Next.js App Router foundation for Users.au login, a protected dashboard and
-profile API, account management and sign-out. Includes typed minimal sessions,
-server-side identity admission, safe login return URLs and regression checks.
+**Hosted authentication. Your application. A practical starting point.**
+
+[Live demo](https://usersau-nextjs-starter.vercel.app) · [AI quick start](#integrate-usersau-into-your-app-with-ai) · [Screenshots](#usersau-in-action) · [Deployment](VERCEL_DEPLOYMENT.md) · [Users.au](https://www.users.au)
+
+[![Checks](https://img.shields.io/github/actions/workflow/status/Users-au/nextjs-starter-kit/ci.yml?branch=main&style=flat-square)](https://github.com/Users-au/nextjs-starter-kit/actions/workflows/ci.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://opensource.org/licenses/MIT) [![Issues](https://img.shields.io/github/issues/Users-au/nextjs-starter-kit?style=flat-square)](https://github.com/Users-au/nextjs-starter-kit/issues) [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/Users-au/nextjs-starter-kit/pulls) [![Node.js](https://img.shields.io/badge/node-22.23.4%2B%20%7C%2024.22.1%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](#versions-and-requirements) [![Live demo](https://img.shields.io/badge/demo-Vercel-black?style=flat-square&logo=vercel)](https://usersau-nextjs-starter.vercel.app)
+
+</div>
+
+A Next.js App Router starter with typed minimal sessions, a protected dashboard,
+profile API, account management and automatic sign-out.
+
+| 🔐 Connect your identity | 🧩 Build your application | 🛡️ Keep checks on the server |
+| --- | --- | --- |
+| Users.au OAuth, custom identity domains and profile/avatar support. | Next.js, React, TypeScript and Tailwind, with a working Vercel demo. | Explicit membership admission, safe return URLs and minimal session data. |
 
 ## Integrate Users.au into your app with AI
 
 > [!TIP]
-> **Copy the prompt below into your AI coding assistant with your application
-> repository open.** It guides the assistant through implementation, configuration
-> and verification in your existing app.
+> **Open your application repository in an AI coding assistant and paste this
+> prompt.** Keep your existing application and let the assistant implement and
+> verify the integration.
 
 ```text
-Integrate Users.au OAuth authentication into this application using
-https://github.com/Users-au/nextjs-starter-kit as the reference implementation.
-Read its README.md, AGENTS.md, docs/AI_IMPLEMENTATION.md and docs/READINESS.md,
-then inspect this app's framework, auth, routes, environment and deployment setup.
-Implement the integration in this app, preserving its existing UI, features and
-conventions. Check compatibility; do not silently migrate its framework/auth stack
-or replace the application with the starter's demo.
-
-Add sign-in, callback handling, protected pages/APIs, profile/avatar display,
-an account-management link and local sign-out followed by Users.au logout.
-Keep OAuth scopes empty unless explicitly registered, normalize stable user IDs,
-keep OAuth tokens out of browser sessions, validate same-origin return URLs and
-enforce this app's membership/role/resource rules on the server.
-
-Infer app URLs, routes and deployment details from existing configuration.
-Keep the public app origin separate from the Users.au identity origin. For
-NextAuth integrations, preserve provider ID usersau and its callback path
-/auth/usersau/callback. Update env examples and give me the exact callback
-URLs to register in Users.au for each environment. Preserve existing secrets;
-never invent, commit or print credentials. Ask only for required information or
-access-policy decisions that cannot be resolved from the repository.
-
-Complete the code, configuration and setup documentation. Run the project's
-checks, dependency audit, build and relevant auth/access regression tests.
-Verify real sign-in/out when test credentials are available; explicitly identify
-any remaining setup or unverified live steps. Commit and open/update a PR using
-the project's contribution workflow, and provide the PR link and check results.
+Integrate Users.au into this application using
+https://github.com/Users-au/nextjs-starter-kit as the reference.
+Read its README.md, AGENTS.md, docs/AI_IMPLEMENTATION.md and docs/READINESS.md;
+inspect this app's versions, auth, routes, environment and deployment conventions.
+Preserve its UI/features and use compatible auth APIs; keep provider ID usersau.
+Implement /auth/usersau/redirect, /auth/usersau/callback, protected pages/APIs,
+profile/avatar/account UI and local sign-out followed by Users.au logout/return.
+Keep scopes empty unless registered, preserve state/CSRF checks, validate local
+return URLs and stable user IDs, and keep OAuth tokens out of browser sessions.
+Enforce membership/role/resource rules on the server. Keep application and identity
+origins separate; never invent, commit or print secrets. Report exact callback URLs to register.
+Update docs/env examples; run checks, audit, build and auth/access regression tests.
+Verify real sign-in/out when credentials are available and identify unverified steps.
+Commit and open/update a PR, then report the PR link and validation results.
 ```
 
-Use a registered Users.au OAuth application and supply its credentials through
-your app's private environment configuration. If credentials are not yet
-available, the assistant can prepare the integration and registration steps;
-live authentication verification requires those credentials. For application
-requirements you want to specify upfront, use the
-[detailed implementation prompt](docs/AI_IMPLEMENTATION.md#copyable-implementation-prompt).
+Supply OAuth credentials through private environment configuration. The assistant
+can prepare implementation while registration is pending; real authentication
+verification needs a registered app. See the [full AI implementation guide](docs/AI_IMPLEMENTATION.md).
+
+## Users.au in action
+
+Users.au hosts the authentication experience on your identity domain. Enable the
+sign-in methods available to your project and connect them to your application
+through OAuth. These official product screenshots show the hosted experience.
+
+<table>
+  <tr><th>🔑 Branded sign-in & social providers</th><th>🛡️ Multi-factor authentication</th></tr>
+  <tr>
+    <td width="50%"><a href="docs/images/usersau-social.png"><img src="docs/images/usersau-social.png" alt="Users.au branded sign-in with Google, Facebook and GitHub options" width="440"></a></td>
+    <td width="50%"><a href="docs/images/usersau-mfa.png"><img src="docs/images/usersau-mfa.png" alt="Users.au authenticator-code challenge with recovery-code option" width="440"></a></td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>👆 Preview the passkey experience</strong></summary>
+
+![Users.au passkey sign-in with a Touch ID prompt](docs/images/usersau-passkey.png)
+
+</details>
+
+[Explore Users.au](https://www.users.au) · [Create a project](https://my.users.au) · [Image sources](docs/images/README.md)
 
 ## Live Vercel demo
 
@@ -247,6 +260,16 @@ This clears the two sessions without inventing token revocation APIs. See the
 The integration test requires a successful build first and a local listening
 socket. CI runs audit, checks, production build and integration tests with
 non-secret fixtures. See [verification details](docs/READINESS.md).
+
+## Choose your integration
+
+| Project | Use it when you want to… |
+| --- | --- |
+| [**Next.js starter — this repo**](https://github.com/Users-au/nextjs-starter-kit) | Start a Next.js app with server-managed OAuth sessions and a protected dashboard. |
+| [Laravel starter](https://github.com/Users-au/laravel-starter-kit) | Start a Laravel app with Blade templates and Users.au integration. |
+| [Laravel client](https://github.com/Users-au/laravel-client) | Add local user synchronization and authentication routes to a Laravel app. |
+| [Socialite provider](https://github.com/Users-au/socialite-provider) | Connect an existing Laravel Socialite authentication flow to Users.au. |
+| [Frontend client](https://github.com/Users-au/frontend-client) | Use public-client OAuth with PKCE in JavaScript, Vue or React. |
 
 ## Contributing and delivery
 
