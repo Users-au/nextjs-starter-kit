@@ -1,9 +1,34 @@
 import { NextRequest } from "next/server"
+import { createHash } from "node:crypto"
 import { authEnvironment } from "@/lib/auth-config"
 import { runAuthAction } from "@/lib/auth-handler"
 
+function logoutReturnCookie(appOrigin: string, maxAge: number) {
+  const secure = new URL(appOrigin).protocol === "https:"
+  const name = `${secure ? "__Host-" : ""}usersau.logout-return`
+  return { name, header: `${name}=${maxAge ? "1" : ""}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}` }
+}
+
 export async function GET(request: NextRequest) {
-  // A GET displays confirmation; only a CSRF-verified POST changes the session.
+  // Automatic navigation must not turn a cross-site link/embed into logout CSRF.
+  const { appOrigin, identityOrigin } = authEnvironment(process.env)
+  const marker = logoutReturnCookie(appOrigin, 0)
+  const hasLocalSession = request.cookies.getAll().some(({ name }) => /^(?:__Secure-)?next-auth\.session-token(?:\.\d+)?$/.test(name))
+  if (request.cookies.get(marker.name)?.value === "1" && !hasLocalSession) {
+    // Some provider configurations return to the registered /logout instead of
+    // accepting `continue`. Consume only a completed local logout, avoiding loops.
+    return new Response(null, { status: 303, headers: { location: `${appOrigin}/auth/login`, "cache-control": "no-store", "set-cookie": marker.header } })
+  }
+  const site = request.headers.get("sec-fetch-site")
+  let sameOrigin = false
+  try {
+    sameOrigin = new URL(request.headers.get("origin") || request.headers.get("referer") || "").origin === appOrigin
+  } catch { /* An absent or invalid initiator does not establish same-origin. */ }
+  const directNavigation = site === "none" && request.headers.get("sec-fetch-mode") === "navigate" && request.headers.get("sec-fetch-dest") === "document"
+  if (!(site === "same-origin" || directNavigation || (!site && sameOrigin))) {
+    return new Response("Open sign-out from this application", { status: 403, headers: { "cache-control": "no-store" } })
+  }
+  // GET only prepares the CSRF pair; the automatic POST clears the session.
   const csrf: Response = await runAuthAction(request, ["csrf"])
   const data: unknown = await csrf.json()
   if (!data || typeof data !== "object" || !("csrfToken" in data) || typeof data.csrfToken !== "string" || !/^[a-zA-Z0-9._-]+$/.test(data.csrfToken)) {
@@ -12,8 +37,11 @@ export async function GET(request: NextRequest) {
   const headers = new Headers(csrf.headers)
   headers.set("content-type", "text/html; charset=utf-8")
   headers.set("cache-control", "no-store")
-  headers.set("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
-  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign out</title><style>body{margin:0;background:#f9fafb;color:#111827;font:16px system-ui,sans-serif;display:grid;min-height:100dvh;place-items:center}main{max-width:24rem;margin:1.5rem;padding:2rem;background:white;border-radius:.75rem;box-shadow:0 1px 4px #0002}h1{font-size:1.5rem}button{background:#4f46e5;color:white;border:0;border-radius:.375rem;padding:.75rem 1rem;font:inherit;cursor:pointer}button:focus-visible{outline:3px solid #818cf8;outline-offset:3px}</style></head><body><main><h1>Sign out</h1><p>Sign out of this application and your Users.au session?</p><form action="/logout" method="post"><input type="hidden" name="csrfToken" value="${data.csrfToken}"><button type="submit">Sign out</button></form></main></body></html>`, { headers })
+  const script = "document.getElementById('logout-form').requestSubmit()"
+  const hash = createHash("sha256").update(script).digest("base64")
+  headers.set("content-security-policy", `default-src 'none'; script-src 'sha256-${hash}'; style-src 'unsafe-inline'; form-action 'self' ${identityOrigin}; base-uri 'none'; frame-ancestors 'none'`)
+  headers.set("referrer-policy", "no-referrer")
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signing out</title><style>body{margin:0;background:#f9fafb;color:#111827;font:16px system-ui,sans-serif;display:grid;min-height:100dvh;place-items:center}main{margin:1.5rem;padding:2rem}h1{font-size:1.5rem}</style></head><body><main><h1>Signing out…</h1><form id="logout-form" action="/logout" method="post"><input type="hidden" name="csrfToken" value="${data.csrfToken}"></form><noscript>Enable JavaScript to complete sign-out automatically.</noscript></main><script>${script}</script></body></html>`, { headers })
 }
 
 export async function POST(request: NextRequest) {
@@ -38,7 +66,12 @@ export async function POST(request: NextRequest) {
   const headers = new Headers(result.headers)
   headers.delete("location")
   headers.set("cache-control", "no-store")
-  const url = `${identityOrigin}/logout`
+  headers.append("set-cookie", logoutReturnCookie(appOrigin, 120).header)
+  // Users.au's official clients use `continue` for the post-logout destination.
+  // Derive it from trusted config; request parameters cannot choose another host.
+  const remoteLogout = new URL("/logout", identityOrigin)
+  remoteLogout.searchParams.set("continue", `${appOrigin}/auth/login`)
+  const url = remoteLogout.toString()
   if (request.headers.get("accept")?.includes("application/json")) return Response.json({ url }, { headers })
   headers.delete("content-type")
   headers.set("location", url)

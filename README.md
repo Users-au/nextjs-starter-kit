@@ -181,7 +181,7 @@ The public authentication endpoints are:
 | --- | --- |
 | `/auth/usersau/redirect` | Starts sign-in automatically in the browser using NextAuth's CSRF-protected POST. Accepts a validated local `callbackUrl`; JavaScript is required. |
 | `/auth/usersau/callback` | Receives Users.au's OAuth response. Register this exact app URL; authorization and token exchange use the same URI and verify OAuth state. |
-| `/logout` | GET displays confirmation; a CSRF-verified POST clears the local session before redirecting to Users.au `/logout`. The app's sign-out button submits directly. |
+| `/logout` | Starts sign-out automatically with no confirmation. A CSRF-verified POST clears the local session, visits Users.au `/logout?continue=…`, then returns to the app's `/auth/login`. JavaScript is required for the GET entry. |
 
 NextAuth's internal `/api/auth/*` routes still provide sessions, CSRF and the
 sign-in engine. When upgrading an older starter, replace the registered
@@ -190,8 +190,16 @@ the application together. Do not merely add a redirect between callback URLs:
 the token exchange must use the originally registered URI.
 
 Account links open the provider's `/account`. Sign-out awaits local NextAuth
-sign-out before visiting provider `/logout`, with retry on failure. This clears
-the two sessions; it does not invent provider logout-return or revocation APIs.
+sign-out before visiting provider `/logout`, with retry on failure. The verified
+Users.au `continue` parameter returns to the configured app's `/auth/login`;
+request input cannot change this destination. The automatic GET entry accepts
+same-origin or direct browser navigation and rejects cross-site initiation.
+If the identity service returns to the registered app `/logout` instead, a
+short-lived HttpOnly cookie completes that return at `/auth/login` without
+restarting remote logout. The return shortcut is unavailable while a local
+session cookie remains.
+This clears the two sessions without inventing token revocation APIs. See the
+[official Users.au logout implementation](https://github.com/Users-au/laravel-client/blob/main/src/Http/Controllers/AuthController.php).
 
 ## Files and commands
 

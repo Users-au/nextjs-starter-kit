@@ -151,9 +151,18 @@ https://app.your-domain.com/auth/usersau/callback
 
 The public login entry is `https://app.your-domain.com/auth/usersau/redirect`
 and the application logout endpoint is `https://app.your-domain.com/logout`.
-The login entry starts a CSRF-protected browser flow. Logout GET displays a
-confirmation form; POST verifies CSRF, clears the application session and
-redirects to the configured identity origin's `/logout`.
+The login entry starts a CSRF-protected browser flow. Logout has no confirmation
+step: same-origin/direct GET navigation automatically submits a CSRF-protected
+POST, clears the application session and redirects to the configured identity
+origin's `/logout?continue=…`, which returns to the app's `/auth/login`. The
+return URL comes only from `NEXTAUTH_URL`; request parameters cannot select an
+external destination. Cross-site GET initiation is rejected; launch logout from
+the app or direct browser navigation rather than embedding it in another site.
+Browsers need JavaScript and Fetch Metadata headers, or a same-origin initiator.
+The identity service must allow the exact `continue` destination. If its
+configuration returns to the registered app `/logout` instead, the starter uses
+a two-minute HttpOnly return cookie after local sign-out to finish at app login
+without repeating remote logout. It cannot skip an existing local session.
 
 When upgrading from the former `/api/auth/callback/usersau` registration,
 coordinate the new registration and deployment. Both authorization and token

@@ -18,10 +18,13 @@ does not establish production readiness.
   Never bake downstream-specific domains into the reusable template.
 - Keep string `usersauId`, avatar fallbacks (`avatar`, `image`, `picture`) and
   account management at the configured provider's `/account`.
-- Clear NextAuth before navigating to Users.au `/logout`. Do not invent logout
-  return parameters, token revocation or refresh behavior.
-- Preserve CSRF checks on sign-in and sign-out. GET `/logout` must not clear a
-  session. Pass OAuth state checks and the canonical callback URI to the token
+- Sign-out has no confirmation step: clear NextAuth, navigate to Users.au
+  `/logout` with its verified `continue` parameter, and return to the app's
+  `/auth/login`. Derive the return URL from trusted config, never request input.
+- Preserve CSRF checks on sign-in and sign-out. GET `/logout` automatically
+  submits a CSRF-verified POST; reject cross-site GET initiation. Do not make
+  GET itself clear a session or invent token revocation/refresh behavior.
+  Pass OAuth state checks and the canonical callback URI to the token
   exchange; changing an authorization URL alone is insufficient.
 - Enforce identity, membership, ownership and read/write permissions at server
   data access, Route Handlers and Server Actions. Middleware excludes `/api`;

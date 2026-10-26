@@ -14,7 +14,7 @@ starter, regardless of its product domain or deployment architecture:
 | --- | --- |
 | OAuth scopes | Empty `USERSAU_SCOPE` stays explicit `scope: undefined`; request only registered scopes and test the generated authorization request after provider/library refactors. |
 | Public endpoints | Use `/auth/usersau/redirect`, `/auth/usersau/callback` and `/logout`. Register the canonical callback and use it in both authorization and token exchange, preserving state checks. |
-| Sign-out | GET `/logout` displays confirmation; only a CSRF-verified POST clears NextAuth before provider logout. Check the next login in a real browser. |
+| Sign-out | No confirmation: GET automatically submits a CSRF-verified POST, clears NextAuth, then visits provider `/logout` with `continue` set to the trusted app `/auth/login`. Reject cross-site GET initiation and verify the return/next login in a browser. |
 | Profile data | Validate string `usersauId`, apply usable `avatar`/`image`/`picture` fallbacks and retain profile/account UI. |
 | Authorization | Use the server admission helper and extend it with application roles/resource ownership; never grant administrator access solely on login or email. |
 | Return URLs | Retain same-origin path/query; public callback registration and the actual generated `redirect_uri` must agree. |
@@ -51,7 +51,8 @@ assuming a particular project architecture.
    handling, loading/error/retry states and ordered two-session logout. Do not
    reintroduce OAuth tokens to JWT/browser sessions. Provider API needs require a
    separate server-side storage/expiry/refresh/failure design; do not invent
-   provider logout-return or revocation parameters.
+   unsupported provider logout-return or revocation parameters. Users.au's
+   verified logout return parameter is `continue`; derive it from the app origin.
 6. **Adapt deployment.** Public `NEXTAUTH_URL` and OAuth registration must use the
    browser-facing HTTPS app origin, not Docker service names. Keep internal API
    URLs private, configure trusted proxy host/protocol forwarding and inspect the

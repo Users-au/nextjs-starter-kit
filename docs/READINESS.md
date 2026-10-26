@@ -15,7 +15,7 @@ the application-specific responsibilities that integrations must implement.
 | Profile types | Typed Session/User/JWT and validated string/numeric IDs with usable image fallbacks. | Type check and profile fixtures including invalid/missing fields. |
 | Configuration | Shared strict origin/secret/credential/admission validation; Next.js env loading before dev/build. | Config tests; errors report names only. Production requires non-loopback HTTPS. |
 | OAuth | Empty default scope preserved explicitly, state checking enabled, stable provider/callback. | Production server generates a real authorization request; test verifies callback, state, code response and absent default scope. |
-| Recovery/logout | Safe errors and retries; GET `/logout` confirms, CSRF-verified POST clears NextAuth before provider logout. | HTTP checks reject missing/forged CSRF, preserve sessions on GET and verify cookie clearing for JSON and native form POSTs. Provider logout still requires browser verification. |
+| Recovery/logout | No confirmation; same-origin/direct GET automatically submits a CSRF-verified POST, clears NextAuth, then visits Users.au `/logout?continue=…` and returns to app login. A short-lived HttpOnly return cookie prevents loops when the provider returns to app `/logout`. | HTTP checks reject cross-site initiation and missing/forged CSRF, verify the script CSP/cookie clearing/return marker, and prevent request-controlled return URLs or skipping an existing local session. Provider logout still requires browser verification. |
 | Installation | `env.example`, lockfile install, atomic private env creation and no overwrite of existing secrets. | Temp-directory tests cover special secret characters and permissions/preservation. |
 | Build/CI | Direct ESLint, type checks, tests, strict build and server integration in CI; local system fonts remove external font downloads. | Pinned GitHub Actions with read-only permissions and non-secret fixtures; weekly Dependabot configuration. |
 
@@ -33,7 +33,8 @@ role/write capabilities and tenant-scoped queries at each server entry point.
 
 No OAuth tokens are retained after login. Add a separate reviewed server-side
 token lifecycle only when provider API access is actually required. Do not expose
-refresh tokens or invent a provider refresh/revocation/logout-return contract.
+refresh tokens or invent provider refresh/revocation behavior. Logout uses the
+verified Users.au `continue` contract with a fixed, trusted app return URL.
 
 Synthetic integration tests sign session fixtures with a test-only key and
 inspect generated OAuth requests. They do not contact Users.au or prove real
