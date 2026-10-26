@@ -1,11 +1,15 @@
 export type AuthEnvironment = Record<string, string | undefined>
 
 const placeholder = /your[-_ ]|replace[-_ ]|placeholder|use-(?:the|a)-|real-environment-|\.example(?:\.com)?(?:[/:]|$)|your-subdomain|your_client/i
+// Placeholder words can occur in real tenant domains. Reject reserved example
+// hosts and the exact documented template hosts instead of arbitrary labels.
+const exampleHost = /(^|\.)example(?:\.(?:com|net|org))?$|^(?:your-subdomain|your-domain)\.users\.au$/i
 
 function origin(value: string | undefined, production: boolean) {
-  if (!value || placeholder.test(value)) return null
+  if (!value) return null
   try {
     const url = new URL(value)
+    if (exampleHost.test(url.hostname.replace(/\.$/, ""))) return null
     const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
     if (url.username || url.password || url.search || url.hash || url.pathname !== "/") return null
     if (url.protocol !== "https:" && !(url.protocol === "http:" && local && !production)) return null

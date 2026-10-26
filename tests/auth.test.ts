@@ -71,6 +71,20 @@ test("development permits loopback HTTP; origins normalize and scope stays expli
   assert.equal(authEnvironment({ ...env, USERSAU_HOST: `${env.USERSAU_HOST}/` }).identityOrigin, env.USERSAU_HOST)
 })
 
+test("configured branded domains are accepted without weakening origin or template validation", () => {
+  for (const identityOrigin of ["https://your-brand.users.au", "https://your-company.auth.test", "https://replace-legacy.auth.test"]) {
+    const branded = { ...env, USERSAU_HOST: identityOrigin, NEXT_PUBLIC_USERSAU_HOST: identityOrigin }
+    assert.deepEqual(authConfigIssues(branded), [])
+    assert.equal(authEnvironment(branded).identityOrigin, identityOrigin)
+  }
+  assert.deepEqual(authConfigIssues({ ...env, NEXTAUTH_URL: "https://your-app.product.test" }), [])
+  for (const identityOrigin of ["https://example.com", "https://auth.example.net", "https://auth.example.org.", "https://identity.example", "https://your-subdomain.users.au", "https://your-domain.users.au"]) {
+    const invalid = { ...env, USERSAU_HOST: identityOrigin, NEXT_PUBLIC_USERSAU_HOST: identityOrigin }
+    assert.ok(authConfigIssues(invalid).includes("USERSAU_HOST"))
+    assert.ok(authConfigIssues(invalid).includes("NEXT_PUBLIC_USERSAU_HOST"))
+  }
+})
+
 test("public OAuth endpoints use one canonical callback for authorization and verified token exchange", async () => {
   const provider = createAuthOptions(env).providers[0] as OAuthConfig<Record<string, unknown>>
   const callback = `${env.NEXTAUTH_URL}${authPaths.callback}`
