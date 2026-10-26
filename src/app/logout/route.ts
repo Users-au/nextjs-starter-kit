@@ -24,8 +24,12 @@ export async function GET(request: NextRequest) {
   try {
     sameOrigin = new URL(request.headers.get("origin") || request.headers.get("referer") || "").origin === appOrigin
   } catch { /* An absent or invalid initiator does not establish same-origin. */ }
-  const directNavigation = site === "none" && request.headers.get("sec-fetch-mode") === "navigate" && request.headers.get("sec-fetch-dest") === "document"
+  // `none` is browser-controlled for address-bar/bookmark navigation; mode/dest
+  // need not survive hosting proxies for this trusted initiation to remain valid.
+  const directNavigation = site === "none"
   if (!(site === "same-origin" || directNavigation || (!site && sameOrigin))) {
+    const loggedSite = ["same-site", "cross-site"].includes(site ?? "") ? site : "missing-or-invalid"
+    console.warn(`[auth] LOGOUT_NAVIGATION_REJECTED site=${loggedSite} sameOrigin=${sameOrigin}`)
     return new Response("Open sign-out from this application", { status: 403, headers: { "cache-control": "no-store" } })
   }
   // GET only prepares the CSRF pair; the automatic POST clears the session.

@@ -114,6 +114,7 @@ test("production server protects data independently of middleware and returns mi
       outgoing.end()
     })
     assert.equal(directStatus, 200)
+    assert.equal((await request("/logout", { headers: { ...headers, "sec-fetch-site": "none" } })).status, 200)
     assert.equal((await request("/logout", { headers: { ...headers, referer: `${env.NEXTAUTH_URL}/dashboard` } })).status, 200)
     assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "" })).status, 403)
     assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "csrfToken=forged" })).status, 403)
