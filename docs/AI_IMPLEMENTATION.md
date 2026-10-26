@@ -5,6 +5,16 @@ Read [AGENTS.md](../AGENTS.md), [README.md](../README.md) and
 and target-repository conventions. The starter supplies working authentication
 and membership admission. Consumers own business permissions and infrastructure.
 
+## Compiler compatibility
+
+Keep the official side-by-side compiler installation: `@typescript/native`
+aliases TypeScript 7 for the `tsc` CLI, while `typescript` aliases
+`@typescript/typescript6` for ESLint and Next.js's JavaScript API. Run the
+`type-check` script (both compiler versions) and the production build after
+changing either package. Do not install TypeScript 7 directly as `typescript`
+until all API consumers support it, or disable lint/type checks to work around
+the API transition.
+
 ## Integration requirements
 
 Preserve these authentication contracts when building an application from the
