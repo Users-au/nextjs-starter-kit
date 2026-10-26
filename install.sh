@@ -8,4 +8,4 @@ fi
 node scripts/check-runtime.mjs
 npm ci
 node scripts/setup-env.mjs
-echo "Register /api/auth/callback/usersau under your public app origin, configure .env.local, then run npm run dev."
+echo "Register /auth/usersau/callback under your public app origin, configure .env.local, then run npm run dev."
