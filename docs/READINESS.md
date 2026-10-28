@@ -47,7 +47,9 @@ browser checklist with a registered test application for those steps.
 | --- | --- | --- |
 | `Callback` / `invalid_scope` | Redacted provider error and outgoing scope; normally empty env and explicit undefined scope in code. | Fresh browser sign-in through token exchange/profile load. |
 | Callback mismatch or old origin | Exact registration, `NEXTAUTH_URL`, deployed env and proxy forwarding. | Generated `redirect_uri` equals the public app callback; login completes. |
-| Access denied | Access mode and stable Users.au ID allowlist; do not change to `all` merely to hide a policy failure. | Intended members pass; excluded/removed members and old sessions fail server checks. |
+| Access denied | Confirm the intended policy: normal `all` sign-in needs no IDs; `allowlist` checks selected stable Users.au IDs. Do not remove an existing restriction merely to hide a failure. | Project accounts pass in `all` mode; only selected accounts pass in `allowlist` mode, including checks on old sessions. |
+| New visitors can create accounts | Registration in the Users.au project's Login Flow settings. An app allowlist restricts app access, but does not close provider registration. | With Registration off, new self-service accounts are blocked and existing project accounts can still sign in. |
+| Assistant asks for another issuer URL | `NEXTAUTH_URL` is the app; `USERSAU_HOST` is the project's hosted login service. A matching project/app name does not change its role. | Authorization/token/profile endpoints use the configured Users.au origin; the callback uses the app origin. No separate OIDC discovery is required by this starter. |
 | Account/logout wrong host | Validated identity origin and both Users.au host settings. | Provider `/account` and `/logout` open at the correct origin. |
 | Next login silently reuses identity | Local sign-out completion and provider `/logout` navigation. | Both sessions clear and a fresh sign-in displays provider login UI. |
 | Missing/inconsistent profile | `/api/user` field shape and image/ID normalization without logging tokens. | Profile/fallback fixtures and actual account display work. |
