@@ -35,17 +35,93 @@ Keep domains, access policies and infrastructure configurable. Select databases,
 queues and other services from the application's requirements rather than
 assuming a particular project architecture.
 
+## Resolve configuration before asking questions
+
+Read the user's supplied configuration and the target app's existing private env
+without displaying secrets. Reuse values that are already known. Ask only about
+missing or contradictory information that actually blocks the next step; keep
+implementing with placeholders when real credentials are pending. Never ask the
+user to paste the Client Secret again just to clarify a URL.
+
+Users.au hosts an authentication service for each project. A project URL such as
+`https://<project>.users.au` is the login service even if the project is named
+after the application being integrated. Configured custom identity domains work
+the same way. The target application's address is a separate setting:
+
+| Setting or endpoint | Meaning | Development example |
+| --- | --- | --- |
+| `NEXTAUTH_URL` | The application being integrated, including its local port | `http://localhost:3000` |
+| `USERSAU_HOST` and `NEXT_PUBLIC_USERSAU_HOST` | The Users.au project's hosted login origin | `https://<project>.users.au` |
+| Authorization | Provider endpoint on the Users.au origin | `https://<project>.users.au/oauth/authorize` |
+| Token exchange | Server-to-server provider endpoint | `https://<project>.users.au/oauth/token` |
+| User profile | Provider endpoint used after token exchange | `https://<project>.users.au/api/user` |
+| Registered callback | On the target app, derived from `NEXTAUTH_URL` | `http://localhost:3000/auth/usersau/callback` |
+
+Replace `<project>` with the actual project subdomain; these examples are not
+credentials or deployable configuration. Localhost is a valid development app
+origin/callback; keep the configured HTTPS Users.au service as the identity
+origin. Never substitute the callback or app URL for `USERSAU_HOST`.
+
+If supplied settings use a combined label such as **Application / Issuer URL**,
+resolve its role from the configured host, callback and existing env. A supplied
+Users.au project/login URL belongs in the identity host settings. A localhost
+callback belongs to the application. Do not demand another identity URL merely
+because the label or project name is ambiguous. If these values actually
+conflict, ask about the specific missing/conflicting URL and explain which
+setting it supplies, without requesting the credentials again.
+
+This starter configures **OAuth 2.0 endpoints directly**. It does not require an
+additional OIDC issuer, discovery document, JWKS URL or `openid` scope. If the
+target app explicitly requires OIDC, verify its provider metadata and supported
+scopes as a separate requirement; do not turn that into a prerequisite for this
+starter's normal OAuth integration.
+
+## Ask about access only when a choice is needed
+
+Use existing product requirements and access rules first. Otherwise ask one
+plain-language question:
+
+> Can everyone with an account in your Users.au project sign in, or should only
+> selected users be allowed?
+
+- **All project accounts:** set `USERSAU_ACCESS_MODE=all` explicitly and leave
+  `USERSAU_ALLOWED_USER_IDS` empty. This is the normal integration flow. Do not
+  ask users to look up their own user ID.
+- **Existing accounts without public sign-ups:** explain how to turn off
+  **Registration** (self-service registration) in the Users.au project admin's
+  **Login Flow** settings. Keep `all` if every existing project account is
+  allowed. Closing registration blocks new self-service accounts, including
+  first-time passwordless/social sign-ups; existing accounts can still sign in.
+  Review those accounts before relying on this choice.
+- **Selected project accounts:** only then collect stable Users.au user IDs,
+  set `USERSAU_ACCESS_MODE=allowlist` and populate `USERSAU_ALLOWED_USER_IDS`.
+  Explain that these are project user IDs, not emails or the OAuth Client ID.
+  Require a nonempty list and verify included/excluded accounts on the server.
+
+Registration is a provider-side project setting, not an env switch implemented
+by this starter. Do not claim it was changed without actually applying and
+verifying it. It does not remove existing accounts/sessions, or replace an
+allowlist when only a subset of existing users may enter. Keep an existing app's
+restrictions unless the user asks to change them; never switch to `all` as a
+workaround for denied access. Application roles/resource/tenant rules still
+apply under either admission mode.
+
 ## Implementation sequence
 
 1. **Inventory the target.** Establish whether this is a new app, integration or
    monorepo; inspect package manager, runtime, dependency versions, scripts,
    existing auth and deployment topology. Keep NextAuth v4 unless a migration is
    part of the task. Resolve available context before asking for missing values.
-2. **Define access.** List public/private routes, signed-in destination, identity
-   origin and exact per-environment callback. Decide explicit `all` versus
-   allowlist admission, onboarding, read/write roles, resource ownership and
-   tenant boundaries. Use stable identity IDs; supporting multiple issuers needs
-   issuer/provider namespacing, not email-only privileged account linking.
+2. **Resolve URLs and access.** Reuse supplied/env configuration using the URL
+   reference above. Derive exact per-environment callbacks from the app origin;
+   a Users.au project domain already identifies the authentication service.
+   List public/private routes and the signed-in destination. If access remains
+   unspecified, ask the single question above; use explicit `all` for normal
+   project sign-in, and collect IDs only for requested selected-user access.
+   Explain closed Registration when public sign-ups are unwanted. Preserve
+   business read/write roles, resource ownership and tenant boundaries. Use
+   stable identity IDs; multiple identity providers need provider/issuer
+   namespacing, not email-only privileged account linking.
 3. **Configure and validate.** Use setup for a new private env and preserve
    existing secrets. Never invent or disclose credentials. In monorepos, env must
    load from the Next.js workspace or be injected. Preserve empty scope, provider
@@ -102,20 +178,44 @@ redacted failure, registration and scope rather than treating every error as
 
 ## Copyable implementation prompt
 
-Resolve bracketed values from the repository or product requirements:
+Paste this into the target application's AI coding assistant. Existing repository
+settings and supplied configuration take precedence over examples; users do not
+need to fill in a separate questionnaire before implementation can begin:
 
 ```text
-Implement [product/use case] in [target repo/workspace], using
-Users-au/nextjs-starter-kit as the authentication base. Read its AGENTS.md,
-README.md, docs/AI_IMPLEMENTATION.md and docs/READINESS.md. Inspect actual
+Integrate Users.au into this application using
+https://github.com/Users-au/nextjs-starter-kit as the authentication reference.
+Read its AGENTS.md, README.md, docs/AI_IMPLEMENTATION.md and docs/READINESS.md. Inspect actual
 versions, source, scripts, lockfile and the target project's conventions.
 
-Public app origin: [per environment]. Users.au origin: [per environment].
-Signed-in destination/public routes: [paths]. Admission: [all or allowed IDs].
-Business role/write/resource/tenant rules: [policy].
-Topology: [Vercel/standalone/Docker/monorepo/reverse proxy].
-Provider API use after login: [none or required operations].
-Use placeholders for missing secrets; never invent/disclose credentials.
+Reuse configuration supplied in the conversation and the app's private env.
+NEXTAUTH_URL is the application origin; localhost with its port is valid in dev.
+USERSAU_HOST and NEXT_PUBLIC_USERSAU_HOST are the Users.au project's hosted login
+origin: https://<project>.users.au or its configured custom identity domain.
+This is the authentication service even when the project and application share
+a name. Use that origin's /oauth/authorize, /oauth/token and /api/user endpoints.
+The callback is NEXTAUTH_URL + /auth/usersau/callback, on the target application.
+Resolve a label like "Application / Issuer URL" from those roles and existing env;
+never treat a localhost callback as the identity origin. This starter uses OAuth
+2.0 directly; do not require another OIDC issuer/discovery URL or openid scope.
+Ask only about genuinely missing/conflicting values after inspecting context.
+Never ask users to repeat an identity URL or Client Secret already configured;
+use placeholders for missing secrets and never invent, print or commit them.
+
+Preserve existing access rules. If requirements leave access unspecified, ask
+once: "Can everyone with an account in your Users.au project sign in, or should
+only selected users be allowed?" Use explicit USERSAU_ACCESS_MODE=all for normal
+project sign-in, leaving USERSAU_ALLOWED_USER_IDS empty. Only ask for stable
+Users.au user IDs and enable allowlist when selected-user access is requested.
+If public sign-ups are unwanted, explain how to turn off Registration in the
+Users.au project's Login Flow settings. Existing accounts can still sign in;
+review them first. An ID allowlist is needed only to exclude some existing users.
+Do not claim a provider setting was changed without applying and verifying it.
+
+Infer public/private routes, signed-in destination and deployment topology from
+the actual app and requirements. Keep its business role/write/resource/tenant
+rules; do not ask users to supply implementation details already in the repo.
+Add provider API token storage only if operations after login require it.
 
 Preserve empty scope, provider ID/callback, typed minimal sessions, stable IDs,
 profile fallbacks, account link, safe callbacks and ordered two-session logout.

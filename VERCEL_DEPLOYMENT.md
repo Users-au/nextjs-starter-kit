@@ -113,16 +113,20 @@ USERSAU_CLIENT_ID=real-environment-client-id
 USERSAU_CLIENT_SECRET=real-environment-client-secret
 USERSAU_HOST=https://identity.your-domain.com
 USERSAU_SCOPE=
-USERSAU_ACCESS_MODE=allowlist
-USERSAU_ALLOWED_USER_IDS=42,100
+USERSAU_ACCESS_MODE=all
+USERSAU_ALLOWED_USER_IDS=
 NEXT_PUBLIC_APP_NAME="My Application"
 NEXT_PUBLIC_USERSAU_HOST=https://identity.your-domain.com
 ```
 
 Replace every example value. Keep the secret stable across deployments/replicas.
 Both Users.au host variables mean the identity origin, **not** the application's
-Vercel URL. Use `all` only if all authenticated identities should have membership;
-custom roles/tenants still require server-side authorization.
+Vercel URL. The normal `all` mode accepts authenticated accounts in your Users.au
+project and needs no user IDs. To prevent public self-registration, turn off
+Registration in that project's Login Flow settings; existing accounts can still
+sign in. Only when access must be limited to selected accounts, use `allowlist`
+with their stable IDs. Preserve existing restrictions and enforce custom
+roles/tenants on the server. See [login access and registration](README.md#login-access-and-registration).
 
 Set all required variables for **Production** before a `--prod` deployment;
 Development or Preview values do not configure Production. Enter OAuth client

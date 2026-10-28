@@ -16,6 +16,18 @@ does not establish production readiness.
 - `NEXTAUTH_URL` is the public application origin. `USERSAU_HOST` and
   `NEXT_PUBLIC_USERSAU_HOST` are the identity origin, including custom domains.
   Never bake downstream-specific domains into the reusable template.
+- A project's `https://<project>.users.au` URL hosts authentication, even when
+  its name matches the downstream app. Use the configured `/oauth/authorize`,
+  `/oauth/token` and `/api/user` endpoints; this OAuth integration needs no
+  separate OIDC issuer/discovery URL. Reuse supplied/env configuration and ask
+  only about missing or conflicting values, without requesting secrets again.
+- ID allowlisting is optional. If requirements do not already settle access,
+  ask once whether all project accounts or only selected users may sign in.
+  Use explicit `USERSAU_ACCESS_MODE=all` for normal sign-in and collect stable
+  IDs only for requested `allowlist` access. Preserve existing restrictions.
+  Explain that disabling Registration in the project's Login Flow prevents new
+  self-service accounts while existing accounts can still sign in; it does not
+  restrict access to a subset of existing users or revoke existing sessions.
 - Keep string `usersauId`, avatar fallbacks (`avatar`, `image`, `picture`) and
   account management at the configured provider's `/account`.
 - Sign-out has no confirmation step: clear NextAuth, navigate to Users.au

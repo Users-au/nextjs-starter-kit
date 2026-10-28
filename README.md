@@ -29,6 +29,24 @@ Integrate Users.au into this application using
 https://github.com/Users-au/nextjs-starter-kit as the reference.
 Read its README.md, AGENTS.md, docs/AI_IMPLEMENTATION.md and docs/READINESS.md;
 inspect this app's versions, auth, routes, environment and deployment conventions.
+Reuse configuration already supplied in this conversation or the app's private env.
+NEXTAUTH_URL is this application's origin (localhost with its port is valid in dev).
+USERSAU_HOST and NEXT_PUBLIC_USERSAU_HOST are the Users.au project's hosted login
+origin: https://<project>.users.au or its configured custom identity domain.
+That project URL serves authentication even if its name matches this application.
+Resolve an ambiguous "Application / Issuer URL" label using those roles and env.
+Use its /oauth/authorize, /oauth/token and /api/user endpoints; the callback is
+NEXTAUTH_URL + /auth/usersau/callback, on this application, not on Users.au.
+This starter uses OAuth 2.0 directly; no separate OIDC issuer/discovery URL is needed.
+Ask only for genuinely missing or conflicting values after inspecting context;
+do not ask users to repeat the identity URL or Client Secret already configured.
+If access requirements are unspecified, ask once in plain language whether all
+accounts in this Users.au project may sign in or only selected users may sign in.
+Use USERSAU_ACCESS_MODE=all for the normal flow; ask for stable user IDs and enable
+allowlist only when selected-user access is requested. Preserve existing restrictions.
+To stop public self-registration, explain how to turn off Registration in the
+Users.au project's Login Flow settings. Existing accounts can still sign in;
+add an ID allowlist only if a subset of those accounts should enter.
 Preserve its UI/features and use compatible auth APIs; keep provider ID usersau.
 Implement /auth/usersau/redirect, /auth/usersau/callback, protected pages/APIs,
 profile/avatar/account UI and local sign-out followed by Users.au logout/return.
@@ -130,17 +148,17 @@ USERSAU_CLIENT_ID=your-real-client-id
 USERSAU_CLIENT_SECRET=your-real-client-secret
 USERSAU_HOST=https://identity.your-domain.com
 USERSAU_SCOPE=
-USERSAU_ACCESS_MODE=allowlist
-USERSAU_ALLOWED_USER_IDS=42,100
+USERSAU_ACCESS_MODE=all
+USERSAU_ALLOWED_USER_IDS=
 NEXT_PUBLIC_APP_NAME="My Application"
 NEXT_PUBLIC_USERSAU_HOST=https://identity.your-domain.com
 ```
 
-Replace example credentials, domains and IDs. `USERSAU_ACCESS_MODE=allowlist`
-allows only the listed stable Users.au IDs. Use `all` deliberately for an app
-that accepts any authenticated identity; the shipped env example selects `all`
-for the demo. An absent/unknown mode or empty allowlist fails configuration.
-This is membership admission, not business roles or tenant authorization.
+Replace example credentials and domains. The normal setup uses
+`USERSAU_ACCESS_MODE=all`: anyone authenticated by **your Users.au project** can
+sign in. No user IDs are needed; visitors still have to authenticate.
+See [login access and registration](#login-access-and-registration) for the
+optional restriction to selected accounts.
 
 In the [Users.au console](https://my.users.au), open the project's Integration >
 OAuth Management, create an OAuth application and register exactly:
@@ -157,6 +175,29 @@ Open `http://localhost:3000`. Development startup validates config before starti
 Next.js. Production build validation additionally requires non-loopback HTTPS
 origins. Generate/register separate credentials and callbacks per environment.
 
+## Login access and registration
+
+Choose the behavior you need before collecting user IDs:
+
+| Who should be able to sign in? | Configuration |
+| --- | --- |
+| Anyone with an account in your Users.au project | Keep `USERSAU_ACCESS_MODE=all` and leave `USERSAU_ALLOWED_USER_IDS` empty. |
+| Existing project accounts, without public self-registration | Keep `all`; in the Users.au project admin, open **Login Flow** and turn off **Registration** (self-service registration). |
+| Only selected accounts from your project | Set `USERSAU_ACCESS_MODE=allowlist` and list their stable Users.au user IDs in `USERSAU_ALLOWED_USER_IDS`, for example `42,100`. |
+
+Closing Registration prevents new self-service accounts, including first-time
+passwordless/social sign-ups. Existing project accounts can still sign in.
+Review those accounts first; closing registration does not revoke their access.
+Use an allowlist only if some existing accounts must also be excluded. It can
+be combined with closed registration, and IDs are needed only in that mode.
+The AI integration prompt asks about this choice if requirements are unclear;
+finding your own user ID is not a prerequisite for normal integration.
+
+Keep the chosen mode explicit: an absent/unknown mode, or an empty allowlist
+in `allowlist` mode, fails configuration. These settings control login admission;
+application roles, resource permissions and tenant authorization still belong
+on the server. Preserve an existing application's access restrictions.
+
 ## Environment contract
 
 | Variable | Meaning |
@@ -164,16 +205,22 @@ origins. Generate/register separate credentials and callbacks per environment.
 | `NEXTAUTH_URL` | Public **application** origin with local port when applicable. Not the provider or an internal container/service URL. |
 | `NEXTAUTH_SECRET` | Private secret of at least 32 characters; preserve across restarts and replicas. |
 | `USERSAU_CLIENT_ID` / `USERSAU_CLIENT_SECRET` | Private configuration for this environment's OAuth registration. |
-| `USERSAU_HOST` | Identity-provider origin; custom domains supported. No path, query, fragment or credentials. |
+| `USERSAU_HOST` | Your Users.au project's hosted login origin, such as `https://<project>.users.au` or its custom identity domain. No path, query, fragment or credentials. |
 | `USERSAU_SCOPE` | Empty by default; set space-separated scopes only when explicitly supported by the OAuth registration. |
-| `USERSAU_ACCESS_MODE` | Required explicit `all` or `allowlist` admission policy. |
-| `USERSAU_ALLOWED_USER_IDS` | Comma-separated stable identity IDs, required for allowlist mode. Not email addresses. |
+| `USERSAU_ACCESS_MODE` | Explicit login policy: `all` for normal project sign-in; optional `allowlist` for selected accounts. |
+| `USERSAU_ALLOWED_USER_IDS` | Leave empty in `all` mode. Comma-separated stable identity IDs required only in `allowlist` mode; not email addresses. |
 | `NEXT_PUBLIC_USERSAU_HOST` | Public identity origin, required to match `USERSAU_HOST`; never the app origin. |
 | `NEXT_PUBLIC_APP_NAME` | Browser-visible display name. Also customize static metadata in `src/app/layout.tsx`. |
 
 The registered callback is `${NEXTAUTH_URL}/auth/usersau/callback`. Origin
 validation rejects placeholders, embedded credentials and unsafe URLs; HTTP
 loopback is allowed only outside production. Trailing `/` is normalized.
+
+The Users.au project domain is the authentication service, even if it shares
+your application's name. The app can run at `http://localhost:3000` while login
+runs at `https://<project>.users.au`. This starter configures OAuth endpoints
+directly and does not require a separate OIDC issuer or discovery URL. See the
+[URL reference and AI guidance](docs/AI_IMPLEMENTATION.md#resolve-configuration-before-asking-questions).
 
 `NEXT_PUBLIC_*` values are browser-visible and generally fixed when Next.js
 builds client code. Never place secrets there; rebuild when public values change.
