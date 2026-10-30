@@ -142,8 +142,12 @@ vercel env ls --environment production --scope my-team
 
 Generate it once per environment and preserve it on redeployments. The list
 command checks variable names, targets and storage types; Secret values remain
-hidden. Keep `USERSAU_SCOPE` unset/empty unless the OAuth app explicitly supports
-requested scopes. Set both identity-host variables to the same real Users.au
+hidden. Register the default `openid profile email preferences:read preferences:write`
+scopes. With `USERSAU_PREFERENCES_ENABLED=true`, configure the private HTTPS Redis
+REST store and token before deploying; all replicas must share this store and
+`NEXTAUTH_SECRET`. See [identity preferences](docs/identity-preferences.md) for
+encrypted credentials, storage permissions and reauthorization. No store is
+automatically provisioned. Set both identity-host variables to the same real Users.au
 origin. NextAuth derives its callback from `NEXTAUTH_URL`; this starter does not
 read a separate `USERSAU_REDIRECT_URI` variable.
 

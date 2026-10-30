@@ -1,4 +1,5 @@
 import "server-only"
+import { cache } from 'react'
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import { getAuthOptions } from "./auth"
@@ -10,9 +11,11 @@ export class AccessError extends Error {
   }
 }
 
+const currentSession = cache(() => getServerSession(getAuthOptions()))
+
 // Call before private data access. Consumers add their resource/role policy here.
 export async function getAuthorizedSession() {
-  const session = await getServerSession(getAuthOptions())
+  const session = await currentSession()
   const decision = accessDecision(session, process.env)
   if (decision !== "allowed") throw new AccessError(decision === "unauthenticated" ? 401 : 403)
   return session!

@@ -1,8 +1,16 @@
+import { credentialVault } from './credential-vault'
+import { saveGrant } from './identity-preferences'
+import { PREFERENCES_CLAIM, normalizePreferences } from '@users-au/client'
 import type { AuthOptions } from "next-auth"
 import { authEnvironment, type AuthEnvironment } from "./auth-config"
 import { identityAllowed, normalizeProfile } from "./auth-policy"
 import { safeCallbackUrl } from "./auth-urls"
 import { authPaths } from "./auth-paths"
+
+function safePreferences(value: unknown, subject: unknown) {
+  if (typeof subject !== 'string' || value == null) return undefined
+  try { return normalizePreferences(value, subject) } catch { return undefined }
+}
 
 export function createAuthOptions(env: AuthEnvironment): AuthOptions {
   const config = authEnvironment(env)
@@ -37,9 +45,26 @@ export function createAuthOptions(env: AuthEnvironment): AuthOptions {
       async signIn({ user }) {
         return identityAllowed(user.usersauId, env)
       },
-      async jwt({ token, user }) {
+      async jwt({ token, user, account }) {
+        let credentialId = token.credentialId
+        let preferences = safePreferences(user?.identityProfile?.[PREFERENCES_CLAIM] ?? token.preferences, user?.usersauId ?? token.usersauId)
+        if (user && account && env.USERSAU_PREFERENCES_ENABLED === 'true') {
+          if (!user.identityProfile || user.identityProfile.sub !== user.usersauId || typeof account.access_token !== 'string') throw new Error('Invalid identity profile')
+          credentialId = await saveGrant(env, { issuer: config.identityOrigin, sub: user.usersauId!, profile: user.identityProfile,
+            accessToken: account.access_token, refreshToken: account.refresh_token, expiresAt: Date.now() + 30 * 86400 * 1000 })
+        }
+        if (!user && env.USERSAU_PREFERENCES_ENABLED === 'true') {
+          if (!credentialId) return {}
+          try {
+            const grant = await credentialVault(env).get(credentialId)
+            if (!grant || grant.sub !== token.usersauId || grant.issuer !== config.identityOrigin) return {}
+            preferences = grant.profile[PREFERENCES_CLAIM]
+          } catch { return {} }
+        }
         // Project only identity/session fields; discard legacy or incoming OAuth tokens.
         return {
+          credentialId,
+          preferences,
           sub: user?.id ?? token.sub,
           name: user?.name ?? token.name,
           email: user?.email ?? token.email,
@@ -51,6 +76,13 @@ export function createAuthOptions(env: AuthEnvironment): AuthOptions {
         }
       },
       async session({ session, token }) {
+        let preferences = safePreferences(token.preferences, token.usersauId)
+        if (token.credentialId && env.USERSAU_PREFERENCES_ENABLED === 'true') {
+          try {
+            const grant = await credentialVault(env).get(token.credentialId)
+            if (grant && grant.sub === token.usersauId && grant.issuer === config.identityOrigin) preferences = grant.profile[PREFERENCES_CLAIM]
+          } catch { /* Retain authentication; preference APIs report explicit store failures. */ }
+        }
         return {
           expires: session.expires,
           user: {
@@ -58,11 +90,19 @@ export function createAuthOptions(env: AuthEnvironment): AuthOptions {
             email: token.email,
             image: token.picture,
             usersauId: token.usersauId,
+            preferences,
           },
         }
       },
       async redirect({ url }) {
         return `${config.appOrigin}${safeCallbackUrl(url, config.appOrigin)}`
+      },
+    },
+    events: {
+      async signOut(message) {
+        if ('token' in message && message.token?.credentialId && env.USERSAU_PREFERENCES_ENABLED === 'true') {
+          await credentialVault(env).remove(message.token.credentialId)
+        }
       },
     },
     // Auth errors are intentionally reduced to codes. Never log raw token responses.

@@ -50,7 +50,7 @@ add an ID allowlist only if a subset of those accounts should enter.
 Preserve its UI/features and use compatible auth APIs; keep provider ID usersau.
 Implement /auth/usersau/redirect, /auth/usersau/callback, protected pages/APIs,
 profile/avatar/account UI and local sign-out followed by Users.au logout/return.
-Keep scopes empty unless registered, preserve state/CSRF checks, validate local
+Use the registered identity/preference scopes, preserve state/CSRF checks, validate local
 return URLs and stable user IDs, and keep OAuth tokens out of browser sessions.
 Enforce membership/role/resource rules on the server. Keep application and identity
 origins separate; never invent, commit or print secrets. Report exact callback URLs to register.
@@ -206,7 +206,9 @@ on the server. Preserve an existing application's access restrictions.
 | `NEXTAUTH_SECRET` | Private secret of at least 32 characters; preserve across restarts and replicas. |
 | `USERSAU_CLIENT_ID` / `USERSAU_CLIENT_SECRET` | Private configuration for this environment's OAuth registration. |
 | `USERSAU_HOST` | Your Users.au project's hosted login origin, such as `https://<project>.users.au` or its custom identity domain. No path, query, fragment or credentials. |
-| `USERSAU_SCOPE` | Empty by default; set space-separated scopes only when explicitly supported by the OAuth registration. |
+| `USERSAU_SCOPE` | Defaults to `openid profile email preferences:read preferences:write`; register these permissions on the OAuth application. |
+| `USERSAU_PREFERENCES_ENABLED` | Set `true` to enable profile/preference synchronization and server-side credential storage. |
+| `USERSAU_GRANT_STORE_URL` / `USERSAU_GRANT_STORE_TOKEN` | Private HTTPS Redis REST endpoint and token; required in production when synchronization is enabled. |
 | `USERSAU_ACCESS_MODE` | Explicit login policy: `all` for normal project sign-in; optional `allowlist` for selected accounts. |
 | `USERSAU_ALLOWED_USER_IDS` | Leave empty in `all` mode. Comma-separated stable identity IDs required only in `allowlist` mode; not email addresses. |
 | `NEXT_PUBLIC_USERSAU_HOST` | Public identity origin, required to match `USERSAU_HOST`; never the app origin. |
@@ -227,11 +229,10 @@ builds client code. Never place secrets there; rebuild when public values change
 The dashboard/account actions receive the validated identity origin from the
 server. See [Next.js environment variables](https://nextjs.org/docs/15/app/guides/environment-variables).
 
-Requesting a scope that is not configured for the OAuth application can cause an
-`invalid_scope` failure. Empty scope deliberately remains an explicit
-`scope: undefined` in provider config, avoiding an underlying default `openid`
-scope. Tests inspect the real NextAuth-generated request so refactors cannot
-silently change this contract.
+Register the default five scopes before rollout. Requesting an unsupported scope
+can cause `invalid_scope`; custom scopes must include both preference permissions
+when synchronization is enabled. Existing grants require fresh authorization.
+Tests inspect the actual NextAuth-generated request.
 
 ## Authentication and server access
 
@@ -239,10 +240,12 @@ Provider ID `usersau` uses `/oauth/authorize`, `/oauth/token` and `/api/user`.
 Profiles normalize IDs to string `usersauId` and select a usable HTTP(S) image
 from `avatar`, `image`, then `picture`. Missing/invalid identities are rejected.
 
-The JWT and browser session contain only identity/profile/session fields. OAuth
-access/refresh tokens are not retained or returned. Legacy token fields are
-removed when a JWT is updated. The starter does not call provider APIs after
-login and therefore does not need token refresh/storage/revocation features.
+OAuth tokens never enter browser session JSON or the encrypted NextAuth JWT.
+With synchronization enabled, the JWT contains an opaque grant handle and a small
+confirmed preference snapshot. Tokens and full normalized profiles are encrypted
+in the server vault, refreshed only when needed, and removed on sign-out.
+Without synchronization, credentials are discarded after login. Legacy token
+fields are removed when a JWT is updated.
 
 `getAuthorizedSession()` in `src/lib/server-auth.ts` checks a server session and
 the current ID policy on each call. Dashboard layout **and page** use it via
@@ -337,3 +340,9 @@ Merging a PR does not authorize production deployment.
 
 [MIT](https://opensource.org/licenses/MIT). Contact
 [opensource@users.au](mailto:opensource@users.au) or open a GitHub issue.
+
+## Identity profiles and account preferences
+
+The starter uses the built Users.au client 2 source tag for the same standard claims/preferences schema as Laravel SDK 2.1. It requests standard identity and preference scopes, renders saved theme before first paint, and offers locale/timezone/theme writeback in the dashboard. OAuth credentials remain in an encrypted server-side vault; browser JSON only receives safe identity fields and confirmed preferences.
+
+See [identity preferences](docs/identity-preferences.md) for production Redis REST configuration, CSRF, revocation, conflicts and rollout. Set USERSAU_PREFERENCES_ENABLED=true to enable this integration. Production requires a persistent shared store; development uses memory. No database or Redis resource is automatically provisioned. Existing sessions need fresh authorization for the added scopes.

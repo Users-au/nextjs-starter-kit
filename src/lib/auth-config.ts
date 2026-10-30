@@ -1,3 +1,4 @@
+import { IDENTITY_SCOPES } from '@users-au/client'
 export type AuthEnvironment = Record<string, string | undefined>
 
 const placeholder = /your[-_ ]|replace[-_ ]|placeholder|use-(?:the|a)-|real-environment-|\.example(?:\.com)?(?:[/:]|$)|your-subdomain|your_client/i
@@ -38,6 +39,15 @@ export function authConfigIssues(env: AuthEnvironment): string[] {
   }
   if (!["all", "allowlist"].includes(env.USERSAU_ACCESS_MODE ?? "")) issues.push("USERSAU_ACCESS_MODE")
   if (env.USERSAU_ACCESS_MODE === "allowlist" && allowedUserIds(env).length === 0) issues.push("USERSAU_ALLOWED_USER_IDS")
+  if (env.USERSAU_PREFERENCES_ENABLED === 'true') {
+    const scope = env.USERSAU_SCOPE?.trim() || IDENTITY_SCOPES.join(' ')
+    if (!['preferences:read', 'preferences:write'].every(value => scope.split(/\s+/).includes(value))) issues.push('USERSAU_SCOPE')
+    if (env.NODE_ENV === 'production' || env.USERSAU_GRANT_STORE_URL || env.USERSAU_GRANT_STORE_TOKEN) {
+      const store = origin(env.USERSAU_GRANT_STORE_URL, true)
+      if (!store || !env.USERSAU_GRANT_STORE_URL?.startsWith('https://')) issues.push('USERSAU_GRANT_STORE_URL')
+      if (!env.USERSAU_GRANT_STORE_TOKEN?.trim() || placeholder.test(env.USERSAU_GRANT_STORE_TOKEN)) issues.push('USERSAU_GRANT_STORE_TOKEN')
+    }
+  }
   return [...new Set(issues)]
 }
 
@@ -54,6 +64,6 @@ export function authEnvironment(env: AuthEnvironment) {
     clientId: env.USERSAU_CLIENT_ID!,
     clientSecret: env.USERSAU_CLIENT_SECRET!,
     secret: env.NEXTAUTH_SECRET!,
-    scope: env.USERSAU_SCOPE?.trim() || undefined,
+    scope: env.USERSAU_SCOPE?.trim() || IDENTITY_SCOPES.join(' '),
   }
 }
