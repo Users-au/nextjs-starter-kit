@@ -58,7 +58,7 @@ test("strict config rejects missing/placeholder values, mismatched hosts and uns
   assert.throws(() => authEnvironment({ ...env, NEXTAUTH_SECRET: privateValue }), error => error instanceof Error && !error.message.includes(privateValue))
 })
 
-test("development permits loopback HTTP; origins normalize and scope stays explicitly undefined", () => {
+test("development permits loopback HTTP; origins normalize and scope defaults to the shared identity/preference contract", () => {
   assert.deepEqual(authConfigIssues({ ...env, NODE_ENV: "development", NEXTAUTH_URL: "http://localhost:3000" }), [])
   const options = createAuthOptions({ ...env, USERSAU_SCOPE: "  " })
   const provider = options.providers[0]
@@ -66,7 +66,7 @@ test("development permits loopback HTTP; origins normalize and scope stays expli
   assert.ok("authorization" in provider)
   const authorization = provider.authorization as { url: string; params: Record<string, unknown> }
   assert.equal(Object.hasOwn(authorization.params, "scope"), true)
-  assert.equal(authorization.params.scope, undefined)
+  assert.equal(authorization.params.scope, "openid profile email preferences:read preferences:write")
   assert.equal(authEnvironment({ ...env, USERSAU_SCOPE: " profile email " }).scope, "profile email")
   assert.equal(authEnvironment({ ...env, USERSAU_HOST: `${env.USERSAU_HOST}/` }).identityOrigin, env.USERSAU_HOST)
 })

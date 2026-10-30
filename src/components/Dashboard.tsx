@@ -1,17 +1,19 @@
 "use client"
 
+import type { InterfacePreferences } from '@users-au/client'
+import { PreferencesPanel } from './PreferencesPanel'
 import type { Session } from "next-auth"
 import { AccountActions } from "./AccountActions"
 import Image from "next/image"
 
-export function Dashboard({ user, identityOrigin }: { user: Session["user"]; identityOrigin: string }) {
-  return <main className="min-h-screen bg-gray-50 p-6 text-gray-900">
+export function Dashboard({ user, identityOrigin, preferences }: { user: Session["user"]; identityOrigin: string; preferences: InterfacePreferences | null }) {
+  return <main className="min-h-screen bg-gray-50 p-6 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
     <div className="mx-auto max-w-4xl">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-5 rounded-xl bg-white p-6 shadow-sm">
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-5 rounded-xl bg-white dark:bg-gray-900 p-6 shadow-sm">
         <h1 className="text-xl font-semibold">{process.env.NEXT_PUBLIC_APP_NAME || "Users.au starter"}</h1>
         <AccountActions identityOrigin={identityOrigin} />
       </header>
-      <section className="rounded-xl bg-white p-8 shadow-sm">
+      <section className="rounded-xl bg-white dark:bg-gray-900 p-8 shadow-sm">
         <h2 className="text-2xl font-semibold">Welcome, {user.name || "User"}</h2>
         <a href={`${identityOrigin}/account`} className="my-6 flex w-fit items-center gap-4 rounded p-1 focus-visible:outline-2 focus-visible:outline-indigo-600">
           {user.image ? <Image src={user.image} unoptimized width={64} height={64} alt="" className="rounded-full object-cover" /> : <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-xl text-indigo-800">{(user.name || user.email || "U").slice(0, 1).toUpperCase()}</span>}
@@ -22,6 +24,7 @@ export function Dashboard({ user, identityOrigin }: { user: Session["user"]; ide
           <div><dt className="text-sm text-gray-600">Session status</dt><dd>Authenticated</dd></div>
         </dl>
       </section>
+      <PreferencesPanel initial={preferences} />
     </div>
   </main>
 }

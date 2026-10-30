@@ -40,6 +40,9 @@ test("production server protects data independently of middleware and returns mi
     }
     assert.ok(ready, `Server did not start: ${output}`)
     assert.equal((await request("/api/profile")).status, 401)
+    assert.equal((await request("/api/account/preferences")).status, 401)
+    assert.equal((await request("/api/account/profile")).status, 401)
+    assert.equal((await request("/api/account/preferences", { method: "PATCH", headers: { "sec-fetch-site": "cross-site", origin: "https://evil.test", "content-type": "application/json" }, body: JSON.stringify({ theme: "dark", expected_version: 0 }) })).status, 403)
     const anonymousPage = await request("/dashboard")
     assert.ok([302, 307].includes(anonymousPage.status))
     assert.ok(anonymousPage.headers.get("location")?.includes("/auth/login"))
@@ -135,7 +138,7 @@ test("production server protects data independently of middleware and returns mi
     assert.equal(authorization.searchParams.get("redirect_uri"), `${env.NEXTAUTH_URL}/auth/usersau/callback`)
     assert.equal(authorization.searchParams.get("response_type"), "code")
     assert.ok(authorization.searchParams.get("state"))
-    assert.ok(!authorization.searchParams.get("scope"))
+    assert.equal(authorization.searchParams.get("scope"), "openid profile email preferences:read preferences:write")
     const signOut = await request("/logout", {
       method: "POST", headers: { cookie: `${csrfCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
       body: new URLSearchParams({ csrfToken }),

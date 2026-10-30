@@ -1,3 +1,4 @@
+import { normalizeUserInfo } from '@users-au/client'
 import type { Session } from "next-auth"
 import { allowedUserIds, type AuthEnvironment } from "./auth-config"
 
@@ -18,19 +19,21 @@ export function accessDecision(session: Session | null, env: AuthEnvironment): "
 
 export function normalizeProfile(value: unknown) {
   if (!value || typeof value !== "object") throw new Error("Invalid Users.au profile")
-  const profile = value as Record<string, unknown>
-  const id = typeof profile.id === "number" && Number.isSafeInteger(profile.id) && profile.id >= 0
-    ? String(profile.id) : profile.id
-  if (!validIdentity(id)) throw new Error("Invalid Users.au identity")
-  const image = [profile.avatar, profile.image, profile.picture].find(value => {
-    if (typeof value !== "string") return false
-    try { return ["https:", "http:"].includes(new URL(value).protocol) } catch { return false }
+  const raw = value as Record<string, unknown>
+  if (raw.sub == null && typeof raw.id === 'number' && (!Number.isSafeInteger(raw.id) || raw.id < 0)) throw new Error('Invalid Users.au identity')
+  const picture = [raw.picture, raw.avatar, raw.image].find(value => {
+    if (typeof value !== 'string') return false
+    try { return ['https:', 'http:'].includes(new URL(value).protocol) } catch { return false }
   })
+  const profile = normalizeUserInfo({ ...raw, picture })
+  const id = profile.sub
+  if (!validIdentity(id)) throw new Error("Invalid Users.au identity")
   return {
     id,
     usersauId: id,
     name: typeof profile.name === "string" ? profile.name : null,
     email: typeof profile.email === "string" ? profile.email : null,
-    image: typeof image === "string" ? image : null,
+    image: profile.picture ?? null,
+    identityProfile: profile,
   }
 }

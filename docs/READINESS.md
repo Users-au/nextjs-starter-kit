@@ -9,12 +9,12 @@ the application-specific responsibilities that integrations must implement.
 | --- | --- | --- |
 | Dependencies | Next.js 15.5.28, NextAuth 4.24.15 and React 19.3.1; patched transitive dependencies in the lockfile. Same-major PostCSS/brace-expansion overrides address upstream pinned/ranged dependencies. | Full npm audit includes dev dependencies; CI rejects low-or-higher vulnerabilities. Recheck override necessity on dependency updates. |
 | Runtime | Node.js 24.22.1 / 22.23.4 baseline, strict engines/builds and server startup validation by default. A temporary Vercel-only operator exception is documented in the [deployment guide](../VERCEL_DEPLOYMENT.md#managed-runtime-patch-rollouts). | Version-boundary and exception-scope tests, startup version diagnostics and `.nvmrc`-selected CI; see the [October runtime security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases). |
-| Minimal session | Only identity/profile/session fields are retained; OAuth tokens and legacy token extras are discarded. | Unit callback checks and real production `/api/auth/session`/`api/profile` requests with legacy-token fixtures. |
+| Minimal session | Identity/profile/session fields plus an opaque server grant handle and confirmed preference snapshot; OAuth tokens never enter JWT/session data. Legacy token extras are discarded. | Unit callback checks and real production `/api/auth/session`/`api/profile` requests with legacy-token fixtures. |
 | Server access | Explicit `all`/ID allowlist admission, current-policy checks in dashboard and protected API. | Server tests reject missing, expired, tampered and disallowed sessions, including direct API calls with middleware-spoofing headers. |
 | Callback URLs | Same-origin path/query/fragment retained; external, encoded separator/control tricks and auth/API loops rejected. | Unit tests and configured NextAuth redirect callback. |
 | Profile types | Typed Session/User/JWT and validated string/numeric IDs with usable image fallbacks. | Type check and profile fixtures including invalid/missing fields. |
 | Configuration | Shared strict origin/secret/credential/admission validation; Next.js env loading before dev/build. | Config tests; errors report names only. Production requires non-loopback HTTPS. |
-| OAuth | Empty default scope preserved explicitly, state checking enabled, stable provider/callback. | Production server generates a real authorization request; test verifies callback, state, code response and absent default scope. |
+| OAuth | Five registered identity/preference scopes by default, state checking enabled, stable provider/callback. | Production server generates a real authorization request; test verifies callback, state, code response and the five default scopes. |
 | Recovery/logout | No confirmation; same-origin/direct GET automatically submits a CSRF-verified POST, clears NextAuth, then visits Users.au `/logout?continue=…` and returns to app login. A short-lived HttpOnly return cookie prevents loops when the provider returns to app `/logout`. | HTTP checks reject cross-site initiation and missing/forged CSRF, verify the script CSP/cookie clearing/return marker, and prevent request-controlled return URLs or skipping an existing local session. Provider logout still requires browser verification. |
 | Installation | `env.example`, lockfile install, atomic private env creation and no overwrite of existing secrets. | Temp-directory tests cover special secret characters and permissions/preservation. |
 | Build/CI | Direct ESLint, type checks, tests, strict build and server integration in CI; local system fonts remove external font downloads. | Pinned GitHub Actions with read-only permissions and non-secret fixtures; weekly Dependabot configuration. |
@@ -26,15 +26,17 @@ when maintaining these versions.
 
 ## Boundaries consumers must extend
 
-The starter stores no business records and has no mutation/tenant APIs. Admission
+The starter stores no business records. Account preference mutations require an
+authenticated subject, same-origin CSRF checks and a matching version. Admission
 decides who may enter; a consumer must add and test its own resource ownership,
 role/write capabilities and tenant-scoped queries at each server entry point.
 `all` is an explicit policy accepting every valid identity, not an admin role.
 
-No OAuth tokens are retained after login. Add a separate reviewed server-side
-token lifecycle only when provider API access is actually required. Do not expose
-refresh tokens or invent provider refresh/revocation behavior. Logout uses the
-verified Users.au `continue` contract with a fixed, trusted app return URL.
+When preference synchronization is enabled, OAuth credentials live only in the
+encrypted server vault. Production requires shared Redis REST storage; development
+memory is temporary. Logout revokes the vault handle before the verified Users.au
+`continue` redirect. See [identity preferences](identity-preferences.md) for refresh,
+CSRF, subject/version checks and revocation races.
 
 Synthetic integration tests sign session fixtures with a test-only key and
 inspect generated OAuth requests. They do not contact Users.au or prove real
@@ -45,7 +47,7 @@ browser checklist with a registered test application for those steps.
 
 | Symptom | Inspect | Verify after fixing |
 | --- | --- | --- |
-| `Callback` / `invalid_scope` | Redacted provider error and outgoing scope; normally empty env and explicit undefined scope in code. | Fresh browser sign-in through token exchange/profile load. |
+| `Callback` / `invalid_scope` | Redacted provider error and outgoing scope; register the five defaults or configure the intended supported scopes. | Fresh browser sign-in through token exchange/profile load. |
 | Callback mismatch or old origin | Exact registration, `NEXTAUTH_URL`, deployed env and proxy forwarding. | Generated `redirect_uri` equals the public app callback; login completes. |
 | Access denied | Confirm the intended policy: normal `all` sign-in needs no IDs; `allowlist` checks selected stable Users.au IDs. Do not remove an existing restriction merely to hide a failure. | Project accounts pass in `all` mode; only selected accounts pass in `allowlist` mode, including checks on old sessions. |
 | New visitors can create accounts | Registration in the Users.au project's Login Flow settings. An app allowlist restricts app access, but does not close provider registration. | With Registration off, new self-service accounts are blocked and existing project accounts can still sign in. |
