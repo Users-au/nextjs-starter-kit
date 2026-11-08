@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@next/env": "^15.5.28",
-    "@users-au/client": "github:Users-au/frontend-client#2e5920026ab935080be8cbe9ff2a3d421aba65b4",
+    "@users-au/client": "git+https://github.com/Users-au/frontend-client.git#2e5920026ab935080be8cbe9ff2a3d421aba65b4",
     "next": "^15.5.28",
     "next-auth": "^4.24.15",
     "react": "^19.3.1",
@@ -42,6 +42,9 @@
   },
   "overrides": {
     "postcss": "^8.5.31",
-    "brace-expansion@^1.1.7": "^1.1.21"
+    "brace-expansion@^1.1.7": "^1.1.21",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    }
   }
 }
