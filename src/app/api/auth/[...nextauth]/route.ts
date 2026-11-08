@@ -1,9 +1,8 @@
-import NextAuth from "next-auth"
 import type { NextRequest } from "next/server"
-import { getAuthOptions } from "@/lib/auth"
+import { runAuthAction } from "@/lib/auth-handler"
 
 async function handler(request: NextRequest, context: { params: Promise<{ nextauth: string[] }> }) {
-  return NextAuth(getAuthOptions())(request, context)
+  return runAuthAction(request, (await context.params).nextauth)
 }
 
 export { handler as GET, handler as POST }

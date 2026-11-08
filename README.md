@@ -346,3 +346,11 @@ Merging a PR does not authorize production deployment.
 The starter uses the built Users.au client 2 source tag for the same standard claims/preferences schema as Laravel SDK 2.1. It requests standard identity and preference scopes, renders saved theme before first paint, and offers locale/timezone/theme writeback in the dashboard. OAuth credentials remain in an encrypted server-side vault; browser JSON only receives safe identity fields and confirmed preferences.
 
 See [identity preferences](docs/identity-preferences.md) for production Redis REST configuration, CSRF, revocation, conflicts and rollout. Set USERSAU_PREFERENCES_ENABLED=true to enable this integration. Production requires a persistent shared store; development uses memory. No database or Redis resource is automatically provisioned. Existing sessions need fresh authorization for the added scopes.
+
+## PAR, branding and return navigation
+
+Login uses confidential server-to-server PAR with S256 PKCE. Application configuration supplies branding and the trusted Home URL. Account-management links point to the application's own account entry, which creates a fresh `/oauth/context` request before opening Auth Profile. The Profile Logo and return action lead to that Home URL. Sign-out creates its own context with a trusted logout destination.
+
+Upgrade Auth and run tenant migrations first; enable PAR for existing OAuth applications (new confidential authorization-code applications enable it by default). Configure the tenant's default sign-in return URL as this application's `/auth/usersau/redirect` entry for users who open Auth login directly. This entry starts authorization; `/auth/usersau/callback` completes it and must not be used as a Logo link.
+
+Fixed tenant return addresses remain fallbacks when there is no application context. Explicit account management stays in Profile after authentication. Each context is single-use at entry, browser-bound and valid for one hour after entry; a new account visit gets a new context. Secrets and branding sources belong on the backend. This branch requires the matching updated SDK and is not a production deployment.

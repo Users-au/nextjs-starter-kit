@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@next/env": "^15.5.28",
-    "@users-au/client": "github:Users-au/frontend-client#v2.0.0",
+    "@users-au/client": "github:Users-au/frontend-client#2e5920026ab935080be8cbe9ff2a3d421aba65b4",
     "next": "^15.5.28",
     "next-auth": "^4.24.15",
     "react": "^19.3.1",
