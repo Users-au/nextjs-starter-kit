@@ -25,7 +25,7 @@ export function createAuthOptions(env: AuthEnvironment): AuthOptions {
         url: `${config.identityOrigin}/oauth/authorize`,
         params: { response_type: "code", scope: config.scope, redirect_uri: callbackUrl },
       },
-      checks: ["state"],
+      checks: ["state", "pkce"],
       client: { redirect_uris: [callbackUrl] },
       token: {
         url: `${config.identityOrigin}/oauth/token`,

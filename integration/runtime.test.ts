@@ -25,7 +25,7 @@ test("production server protects data independently of middleware and returns mi
     USERSAU_ACCESS_MODE: "allowlist", USERSAU_ALLOWED_USER_IDS: "42", USERSAU_SCOPE: "",
     NEXT_TELEMETRY_DISABLED: "1",
   }
-  const child = spawn(process.execPath, [resolve("node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], { env, stdio: ["ignore", "pipe", "pipe"] })
+  const child = spawn(process.execPath, ["--import", resolve("integration/pushed-provider.mjs"), resolve("node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], { env, stdio: ["ignore", "pipe", "pipe"] })
   let output = ""
   child.stdout.on("data", chunk => { output += String(chunk) })
   child.stderr.on("data", chunk => { output += String(chunk) })
@@ -62,10 +62,10 @@ test("production server protects data independently of middleware and returns mi
     assert.ok(!JSON.stringify(sessionData).includes("MUST-NOT-LEAK"))
     const dashboard = await request("/dashboard", { headers })
     assert.equal(dashboard.status, 200)
-    assert.ok((await dashboard.text()).includes(`${env.USERSAU_HOST}/account`))
+    assert.ok((await dashboard.text()).includes("/auth/usersau/account"))
     const deniedScreen = await request("/auth/access-denied")
     assert.equal(deniedScreen.status, 200)
-    assert.ok((await deniedScreen.text()).includes(`${env.USERSAU_HOST}/account`))
+    assert.ok((await deniedScreen.text()).includes("/auth/usersau/account"))
     const disallowedJwt = await encode({ secret: env.NEXTAUTH_SECRET, token: { sub: "43", usersauId: "43" } })
     const forbidden = await request("/api/profile", { headers: { cookie: `${cookieName}=${disallowedJwt}` } })
     assert.equal(forbidden.status, 403)
@@ -123,7 +123,7 @@ test("production server protects data independently of middleware and returns mi
     assert.equal((await request("/logout", { method: "POST", headers: { ...headers, "content-type": "application/x-www-form-urlencoded" }, body: "csrfToken=forged" })).status, 403)
     assert.equal((await request("/api/profile", { headers })).status, 200)
 
-    // Inspect a real NextAuth-generated OAuth request; this does not contact Users.au.
+    // Inspect NextAuth cookies and the PAR request against the isolated provider fixture.
     const csrfResponse = await request("/api/auth/csrf")
     const { csrfToken } = await csrfResponse.json()
     const csrfCookies = csrfResponse.headers.getSetCookie().map(cookie => cookie.split(";")[0]).join("; ")
@@ -135,17 +135,22 @@ test("production server protects data independently of middleware and returns mi
     const authorization = new URL((await signIn.json()).url)
     assert.equal(authorization.origin, env.USERSAU_HOST)
     assert.equal(authorization.pathname, "/oauth/authorize")
-    assert.equal(authorization.searchParams.get("redirect_uri"), `${env.NEXTAUTH_URL}/auth/usersau/callback`)
-    assert.equal(authorization.searchParams.get("response_type"), "code")
-    assert.ok(authorization.searchParams.get("state"))
-    assert.equal(authorization.searchParams.get("scope"), "openid profile email preferences:read preferences:write")
+    assert.deepEqual([...authorization.searchParams.keys()].sort(), ['client_id', 'request_uri'])
+    assert.equal(authorization.searchParams.get('request_uri'), `urn:ietf:params:oauth:request_uri:${'p'.repeat(64)}`)
+    assert.ok(signIn.headers.getSetCookie().some(cookie => cookie.includes('pkce.code_verifier=')))
+    const account = await request('/auth/usersau/account', { headers })
+    assert.equal(account.status, 303)
+    const accountUrl = new URL(account.headers.get('location')!)
+    assert.equal(accountUrl.pathname, '/account')
+    assert.equal(accountUrl.searchParams.get('request_uri'), `urn:ietf:params:oauth:request_uri:${'a'.repeat(64)}`)
     const signOut = await request("/logout", {
       method: "POST", headers: { cookie: `${csrfCookies}; ${cookieName}=${jwt}`, "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
       body: new URLSearchParams({ csrfToken }),
     })
     assert.equal(signOut.status, 200)
     const expectedLogout = new URL("/logout", env.USERSAU_HOST)
-    expectedLogout.searchParams.set("continue", `${env.NEXTAUTH_URL}/auth/login`)
+    expectedLogout.searchParams.set('client_id', env.USERSAU_CLIENT_ID)
+    expectedLogout.searchParams.set('request_uri', `urn:ietf:params:oauth:request_uri:${'l'.repeat(64)}`)
     assert.deepEqual(await signOut.json(), { url: expectedLogout.toString() })
     assert.ok(signOut.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`) && cookie.includes("Max-Age=0")))
     const returnMarker = signOut.headers.getSetCookie().find(cookie => cookie.startsWith("__Host-usersau.logout-return="))

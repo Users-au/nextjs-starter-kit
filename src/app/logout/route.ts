@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { createHash } from "node:crypto"
 import { authEnvironment } from "@/lib/auth-config"
 import { runAuthAction } from "@/lib/auth-handler"
+import { applicationContextUrl } from "@/lib/pushed-auth"
 
 function logoutReturnCookie(appOrigin: string, maxAge: number) {
   const secure = new URL(appOrigin).protocol === "https:"
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid sign-out request" }, { status: 400 })
   }
   if (typeof csrfToken !== "string" || !csrfToken) return Response.json({ error: "Invalid sign-out request" }, { status: 403 })
-  const { appOrigin, identityOrigin } = authEnvironment(process.env)
+  const { appOrigin } = authEnvironment(process.env)
   const callbackUrl = `${appOrigin}/dashboard`
   const internal = new NextRequest(`${appOrigin}/api/auth/signout`, {
     method: "POST",
@@ -71,11 +72,9 @@ export async function POST(request: NextRequest) {
   headers.delete("location")
   headers.set("cache-control", "no-store")
   headers.append("set-cookie", logoutReturnCookie(appOrigin, 120).header)
-  // Users.au's official clients use `continue` for the post-logout destination.
-  // Derive it from trusted config; request parameters cannot choose another host.
-  const remoteLogout = new URL("/logout", identityOrigin)
-  remoteLogout.searchParams.set("continue", `${appOrigin}/auth/login`)
-  const url = remoteLogout.toString()
+  let url: string
+  try { url = await applicationContextUrl(process.env, 'logout') }
+  catch { return Response.json({ error: 'Remote sign-out is temporarily unavailable' }, { status: 502, headers }) }
   if (request.headers.get("accept")?.includes("application/json")) return Response.json({ url }, { headers })
   headers.delete("content-type")
   headers.set("location", url)
