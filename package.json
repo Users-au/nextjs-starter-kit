@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@next/env": "^15.5.28",
-    "@users-au/client": "git+https://github.com/Users-au/frontend-client.git#2e5920026ab935080be8cbe9ff2a3d421aba65b4",
+    "@users-au/client": "https://codeload.github.com/Users-au/frontend-client/tar.gz/refs/tags/v2.1.0",
     "next": "^15.5.28",
     "next-auth": "^4.24.15",
     "react": "^19.3.1",
