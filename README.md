@@ -319,6 +319,28 @@ The integration test requires a successful build first and a local listening
 socket. CI runs audit, checks, production build and integration tests with
 non-secret fixtures. See [verification details](docs/READINESS.md).
 
+## FAQ
+
+### Is there a live demo?
+
+Yes: [usersau-nextjs-starter.vercel.app](https://usersau-nextjs-starter.vercel.app). See also the [Live Vercel demo](#live-vercel-demo) section.
+
+### Which Node.js versions are supported?
+
+Patched Node.js 24.22.1+ (24.x) or 22.23.4+ (22.x). `.nvmrc` and CI use 24.22.1; older runtimes fail installation, startup and build checks by default. See [Versions and requirements](#versions-and-requirements).
+
+### Which authentication library does it use?
+
+NextAuth v4 with the Users.au OAuth provider. Use NextAuth v4 APIs with this code; Auth.js v5 is a separate migration.
+
+### How do I deploy it to Vercel?
+
+Follow [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md), which also covers managed-runtime patch rollouts.
+
+### Can an AI coding assistant integrate Users.au into my own app?
+
+Yes. See [Integrate Users.au into your app with AI](#integrate-usersau-into-your-app-with-ai) and the [AI implementation guide](docs/AI_IMPLEMENTATION.md), which includes a copyable implementation prompt.
+
 ## Choose your integration
 
 | Project | Use it when you want to… |

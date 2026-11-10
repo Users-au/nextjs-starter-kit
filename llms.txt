@@ -1,0 +1,16 @@
+# Users.au Next.js Starter Kit
+
+> Next.js App Router + TypeScript starter kit with Users.au OAuth 2.0 sign-in via NextAuth, a protected dashboard and a Vercel demo. Part of Users.au (https://www.users.au), a hosted identity service.
+
+Install / start: `git clone https://github.com/Users-au/nextjs-starter-kit.git`
+
+## Docs
+- [README](https://github.com/Users-au/nextjs-starter-kit/blob/main/README.md): install, configuration, usage, troubleshooting and FAQ
+- [Users.au](https://www.users.au): hosted authentication service
+- [Users.au console](https://my.users.au): create a project and an OAuth application
+
+## Related projects
+- [Laravel starter kit](https://github.com/Users-au/laravel-starter-kit)
+- [Laravel client (Composer)](https://github.com/Users-au/laravel-client)
+- [Laravel Socialite provider (Composer)](https://github.com/Users-au/socialite-provider)
+- [Frontend client (npm)](https://github.com/Users-au/frontend-client)
