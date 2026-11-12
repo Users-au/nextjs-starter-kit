@@ -17,7 +17,7 @@
     "test:integration": "node --import tsx --test integration/*.test.ts"
   },
   "dependencies": {
-    "@next/env": "^15.5.28",
+    "@next/env": "^16.4.5",
     "@users-au/client": "https://codeload.github.com/Users-au/frontend-client/tar.gz/refs/tags/v2.1.0",
     "next": "^15.5.28",
     "next-auth": "^4.24.15",
