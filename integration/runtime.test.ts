@@ -8,7 +8,7 @@ import { encode } from "next-auth/jwt"
 import { createHash } from "node:crypto"
 import { request as nodeRequest } from "node:http"
 
-test("production server protects data independently of middleware and returns minimal sessions", { timeout: 120_000 }, async () => {
+test("production server completes OAuth sign-in, protects data and returns minimal sessions", { timeout: 120_000 }, async () => {
   const listener = createServer()
   listener.listen(0, "127.0.0.1")
   await once(listener, "listening")
@@ -136,8 +136,32 @@ test("production server protects data independently of middleware and returns mi
     assert.equal(authorization.origin, env.USERSAU_HOST)
     assert.equal(authorization.pathname, "/oauth/authorize")
     assert.deepEqual([...authorization.searchParams.keys()].sort(), ['client_id', 'request_uri'])
-    assert.equal(authorization.searchParams.get('request_uri'), `urn:ietf:params:oauth:request_uri:${'p'.repeat(64)}`)
-    assert.ok(signIn.headers.getSetCookie().some(cookie => cookie.includes('pkce.code_verifier=')))
+    const requestUri = authorization.searchParams.get('request_uri')
+    const requestUriPrefix = 'urn:ietf:params:oauth:request_uri:'
+    assert.ok(requestUri && requestUri.startsWith(requestUriPrefix))
+    const state = requestUri.slice(requestUriPrefix.length)
+    const signInCookies = signIn.headers.getSetCookie()
+    assert.ok(signInCookies.some(cookie => cookie.includes('pkce.code_verifier=')))
+    const callbackCookies = signInCookies.map(cookie => cookie.split(';')[0]).join('; ')
+    const callbackPath = (returnedState: string) => '/auth/usersau/callback?' + new URLSearchParams({
+      code: 'integration-code', state: returnedState,
+    })
+    const returnedWithWrongState = await request(callbackPath('wrong-state'), { headers: { cookie: callbackCookies } })
+    assert.equal(new URL(returnedWithWrongState.headers.get('location')!).searchParams.get('error'), 'OAuthCallback')
+    assert.ok(!returnedWithWrongState.headers.getSetCookie().some(cookie => cookie.startsWith(`${cookieName}=`)))
+
+    const callback = await request(callbackPath(state), { headers: { cookie: callbackCookies } })
+    assert.equal(callback.headers.get('location'), `${env.NEXTAUTH_URL}/dashboard?tab=profile`)
+    const sessionCookie = callback.headers.getSetCookie().find(cookie => cookie.startsWith(`${cookieName}=`))
+    assert.ok(sessionCookie)
+    const loggedIn = { cookie: sessionCookie.split(';')[0] }
+    assert.equal((await request('/dashboard?tab=profile', { headers: loggedIn })).status, 200)
+    const signedInSession = await request('/api/auth/session', { headers: loggedIn })
+    assert.equal(signedInSession.status, 200)
+    const signedIn = await signedInSession.json()
+    assert.equal(signedIn.user.usersauId, '42')
+    assert.equal(signedIn.user.email, 'user@users.test')
+    assert.doesNotMatch(JSON.stringify(signedIn), /integration-(access|refresh)-token/)
     const account = await request('/auth/usersau/account', { headers })
     assert.equal(account.status, 303)
     const accountUrl = new URL(account.headers.get('location')!)
