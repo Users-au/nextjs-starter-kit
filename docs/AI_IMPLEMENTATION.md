@@ -22,7 +22,7 @@ starter, regardless of its product domain or deployment architecture:
 
 | Concern | Required behavior |
 | --- | --- |
-| OAuth scopes | Default `USERSAU_SCOPE` requests `openid profile email preferences:read preferences:write`; register these scopes and test the generated authorization request after provider/library refactors. |
+| OAuth scopes | Default `USERSAU_SCOPE` requests `profile email preferences:read preferences:write`; register these scopes and test the generated authorization request after provider/library refactors. |
 | Public endpoints | Use `/auth/usersau/redirect`, `/auth/usersau/callback` and `/logout`. Register the canonical callback and use it in both authorization and token exchange, preserving state checks. |
 | Sign-out | No confirmation: GET automatically submits a CSRF-verified POST, clears NextAuth, then visits provider `/logout` with `continue` set to the trusted app `/auth/login`. Reject cross-site GET initiation and verify the return/next login in a browser. |
 | Profile data | Validate string `usersauId`, apply usable `avatar`/`image`/`picture` fallbacks and retain profile/account UI. |
@@ -70,11 +70,11 @@ because the label or project name is ambiguous. If these values actually
 conflict, ask about the specific missing/conflicting URL and explain which
 setting it supplies, without requesting the credentials again.
 
-This starter derives its endpoints from `USERSAU_HOST`. The default scopes
-include `openid`. For this scope, the starter validates the ID token using
-`USERSAU_HOST` as issuer and `/.well-known/jwks.json` at that origin. It reads
-the profile and preferences from `/api/user`. Explicit scopes without `openid`
-use OAuth 2.0 token exchange.
+This starter derives its endpoints from `USERSAU_HOST` and defaults to OAuth
+2.0. It reads the profile and preferences from `/api/user`. To use OpenID
+Connect, explicitly include `openid` in `USERSAU_SCOPE` and enable ID tokens for
+requests without a nonce in the Users.au OAuth application. The starter then
+validates the ID token using that origin as issuer and its `/.well-known/jwks.json`.
 
 ## Ask about access only when a choice is needed
 
@@ -198,7 +198,7 @@ The callback is NEXTAUTH_URL + /auth/usersau/callback, on the target application
 Resolve a label like "Application / Issuer URL" from those roles and existing env;
 never treat a localhost callback as the identity origin. The starter derives
 the ID token issuer and JWKS URL from USERSAU_HOST. Register the default
-openid/profile/email and preference read/write scopes.
+profile/email and preference read/write scopes.
 Ask only about genuinely missing/conflicting values after inspecting context.
 Never ask users to repeat an identity URL or Client Secret already configured;
 use placeholders for missing secrets and never invent, print or commit them.

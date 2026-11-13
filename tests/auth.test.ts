@@ -62,7 +62,7 @@ test("strict config rejects missing/placeholder values, mismatched hosts and uns
   assert.throws(() => authEnvironment({ ...env, NEXTAUTH_SECRET: privateValue }), error => error instanceof Error && !error.message.includes(privateValue))
 })
 
-test("development permits loopback HTTP; origins normalize and scope defaults to the shared identity/preference contract", () => {
+test("development permits loopback HTTP; origins normalize and scope defaults to OAuth profile and preferences", () => {
   assert.deepEqual(authConfigIssues({ ...env, NODE_ENV: "development", NEXTAUTH_URL: "http://localhost:3000" }), [])
   const options = createAuthOptions({ ...env, USERSAU_SCOPE: "  " })
   const provider = options.providers[0]
@@ -70,7 +70,7 @@ test("development permits loopback HTTP; origins normalize and scope defaults to
   assert.ok("authorization" in provider)
   const authorization = provider.authorization as { url: string; params: Record<string, unknown> }
   assert.equal(Object.hasOwn(authorization.params, "scope"), true)
-  assert.equal(authorization.params.scope, "openid profile email preferences:read preferences:write")
+  assert.equal(authorization.params.scope, "profile email preferences:read preferences:write")
   assert.equal(authEnvironment({ ...env, USERSAU_SCOPE: " profile email " }).scope, "profile email")
   assert.equal(authEnvironment({ ...env, USERSAU_HOST: `${env.USERSAU_HOST}/` }).identityOrigin, env.USERSAU_HOST)
 })
@@ -90,7 +90,7 @@ test("configured branded domains are accepted without weakening origin or templa
 })
 
 test("public OAuth endpoints keep the canonical callback and checks for OAuth and OIDC", async () => {
-  const provider = createAuthOptions(env).providers[0] as OAuthConfig<Record<string, unknown>>
+  const provider = createAuthOptions({ ...env, USERSAU_SCOPE: "openid profile email" }).providers[0] as OAuthConfig<Record<string, unknown>>
   const callback = `${env.NEXTAUTH_URL}${authPaths.callback}`
   assert.deepEqual(authPaths, { redirect: "/auth/usersau/redirect", callback: "/auth/usersau/callback", logout: "/logout" })
   assert.equal((provider.authorization as { params: { redirect_uri: string } }).params.redirect_uri, callback)
@@ -110,7 +110,7 @@ test("public OAuth endpoints keep the canonical callback and checks for OAuth an
   assert.equal(provider.issuer, env.USERSAU_HOST)
   assert.equal(provider.jwks_endpoint, `${env.USERSAU_HOST}/.well-known/jwks.json`)
 
-  const oauth = createAuthOptions({ ...env, USERSAU_SCOPE: "profile email" }).providers[0] as typeof provider
+  const oauth = createAuthOptions(env).providers[0] as typeof provider
   const oauthEndpoint = oauth.token as TokenEndpointHandler
   const oauthInput = { params, checks, client: { oauthCallback: recordExchange } } as unknown as Input
   assert.equal((await oauthEndpoint.request!(oauthInput)).tokens, tokens)
@@ -118,7 +118,7 @@ test("public OAuth endpoints keep the canonical callback and checks for OAuth an
 })
 
 test("the callback validates signed ID tokens before loading the matching UserInfo", async t => {
-  const provider = createAuthOptions(env).providers[0] as OAuthConfig<Record<string, unknown>>
+  const provider = createAuthOptions({ ...env, USERSAU_SCOPE: "openid profile email" }).providers[0] as OAuthConfig<Record<string, unknown>>
   assert.ok(provider.issuer)
   const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 })
   const { privateKey: wrongKey } = generateKeyPairSync("rsa", { modulusLength: 2048 })

@@ -10,7 +10,7 @@ does not establish production readiness.
 - Keep provider ID `usersau` and the public `/auth/usersau/redirect`,
   `/auth/usersau/callback` and `/logout` endpoints unless a migration
   updates all consumers and OAuth registrations.
-- Leave `USERSAU_SCOPE` unset to request the five default identity/preference
+- Leave `USERSAU_SCOPE` unset to request the default profile/preference
   scopes. Verify the outgoing scope and OAuth registration before changing it.
 - `NEXTAUTH_URL` is the public application origin. `USERSAU_HOST` and
   `NEXT_PUBLIC_USERSAU_HOST` are the identity origin, including custom domains.
@@ -19,6 +19,7 @@ does not establish production readiness.
   its name matches the downstream app. Use the configured `/oauth/authorize`,
   `/oauth/token` and `/api/user` endpoints. For the `openid` scope, validate ID
   tokens using `USERSAU_HOST` as issuer and that origin's `/.well-known/jwks.json`.
+  Enable ID tokens for requests without a nonce on the Users.au application.
   Reuse supplied/env configuration and ask only about missing or conflicting
   values, without requesting secrets again.
 - ID allowlisting is optional. If requirements do not already settle access,
