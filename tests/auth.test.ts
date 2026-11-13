@@ -5,6 +5,10 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { spawnSync } from "node:child_process"
 import { createRequire } from "node:module"
+import { generateKeyPairSync, sign } from "node:crypto"
+import { once } from "node:events"
+import { createServer } from "node:http"
+import { Issuer, TokenSet } from "openid-client"
 import type { AuthOptions, Session } from "next-auth"
 import type { OAuthConfig, TokenEndpointHandler } from "next-auth/providers/oauth"
 import { authConfigIssues, authEnvironment } from "../src/lib/auth-config"
@@ -85,7 +89,7 @@ test("configured branded domains are accepted without weakening origin or templa
   }
 })
 
-test("public OAuth endpoints use one canonical callback for authorization and verified token exchange", async () => {
+test("public OAuth endpoints keep the canonical callback and checks for OAuth and OIDC", async () => {
   const provider = createAuthOptions(env).providers[0] as OAuthConfig<Record<string, unknown>>
   const callback = `${env.NEXTAUTH_URL}${authPaths.callback}`
   assert.deepEqual(authPaths, { redirect: "/auth/usersau/redirect", callback: "/auth/usersau/callback", logout: "/logout" })
@@ -98,12 +102,94 @@ test("public OAuth endpoints use one canonical callback for authorization and ve
   const checks = { state: "expected-state", code_verifier: "test-verifier" }
   const tokens = { access_token: "transient-provider-token" }
   let observed: unknown[] = []
-  const input = { params, checks, client: { oauthCallback: async (...args: unknown[]) => { observed = args; return tokens } } } as unknown as Input
+  const recordExchange = async (...args: unknown[]) => { observed = args; return tokens }
+  const input = { params, checks, client: { callback: recordExchange } } as unknown as Input
   const response = await endpoint.request(input)
-  assert.deepEqual(observed, [callback, params, checks])
+  assert.deepEqual(observed, [callback, params, { ...checks, response_type: "code" }])
   assert.equal(response.tokens, tokens)
-  const rejected = { ...input, client: { oauthCallback: async () => { throw new Error("state mismatch") } } } as unknown as Input
-  await assert.rejects(async () => endpoint.request!(rejected), /state mismatch/)
+  assert.equal(provider.issuer, env.USERSAU_HOST)
+  assert.equal(provider.jwks_endpoint, `${env.USERSAU_HOST}/.well-known/jwks.json`)
+
+  const oauth = createAuthOptions({ ...env, USERSAU_SCOPE: "profile email" }).providers[0] as typeof provider
+  const oauthEndpoint = oauth.token as TokenEndpointHandler
+  const oauthInput = { params, checks, client: { oauthCallback: recordExchange } } as unknown as Input
+  assert.equal((await oauthEndpoint.request!(oauthInput)).tokens, tokens)
+  assert.deepEqual(observed, [callback, params, { ...checks, response_type: "code" }])
+})
+
+test("the callback validates signed ID tokens before loading the matching UserInfo", async t => {
+  const provider = createAuthOptions(env).providers[0] as OAuthConfig<Record<string, unknown>>
+  assert.ok(provider.issuer)
+  const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 })
+  const { privateKey: wrongKey } = generateKeyPairSync("rsa", { modulusLength: 2048 })
+  const jwk = { ...publicKey.export({ format: "jwk" }), kid: "test-key", alg: "RS256", use: "sig" }
+  const idToken = (key: typeof privateKey) => {
+    const now = Math.floor(Date.now() / 1000)
+    const header = Buffer.from(JSON.stringify({ alg: "RS256", kid: jwk.kid })).toString("base64url")
+    const claims = Buffer.from(JSON.stringify({ iss: provider.issuer, aud: env.USERSAU_CLIENT_ID, sub: "42", iat: now, exp: now + 300 })).toString("base64url")
+    const payload = `${header}.${claims}`
+    return `${payload}.${sign("RSA-SHA256", Buffer.from(payload), key).toString("base64url")}`
+  }
+
+  const callbackUrl = `${env.NEXTAUTH_URL}${authPaths.callback}`
+  const checks = { state: "expected-state", code_verifier: "fixture-verifier" }
+  let exchanges = 0
+  const server = createServer(async (request, response) => {
+    response.setHeader("content-type", "application/json")
+    if (request.method === "POST" && request.url === "/oauth/token") {
+      exchanges++
+      const chunks: Buffer[] = []
+      for await (const chunk of request) chunks.push(chunk)
+      const params = new URLSearchParams(Buffer.concat(chunks).toString())
+      if (params.get("redirect_uri") !== callbackUrl || params.get("code_verifier") !== checks.code_verifier) {
+        response.writeHead(400).end(JSON.stringify({ error: "invalid_grant" }))
+        return
+      }
+      const code = params.get("code")
+      response.end(JSON.stringify({
+        access_token: code === "wrong-subject" ? "other-subject-token" : "fixture-access-token",
+        token_type: "Bearer",
+        id_token: code === "missing-id-token" ? undefined : idToken(code === "invalid-signature" ? wrongKey : privateKey),
+      }))
+    } else if (request.url === "/.well-known/jwks.json") {
+      response.end(JSON.stringify({ keys: [jwk] }))
+    } else if (request.url === "/api/user") {
+      const sub = request.headers.authorization === "Bearer fixture-access-token" ? "42" : "43"
+      response.end(JSON.stringify({ sub, name: "Fixture user" }))
+    } else {
+      response.writeHead(404).end()
+    }
+  })
+  server.listen(0, "127.0.0.1")
+  t.after(() => server.close())
+  await once(server, "listening")
+  const address = server.address()
+  assert.ok(address && typeof address === "object")
+  const origin = `http://127.0.0.1:${address.port}`
+  const issuer = new Issuer({
+    issuer: provider.issuer,
+    token_endpoint: `${origin}/oauth/token`,
+    jwks_uri: `${origin}/.well-known/jwks.json`,
+    userinfo_endpoint: `${origin}/api/user`,
+  })
+  const client = new issuer.Client({ client_id: env.USERSAU_CLIENT_ID, client_secret: env.USERSAU_CLIENT_SECRET, redirect_uris: [callbackUrl] })
+  const endpoint = provider.token as TokenEndpointHandler
+  assert.ok(endpoint.request)
+  const exchange = async (code: string, state = checks.state) => endpoint.request!({
+    provider: { ...provider, signinUrl: `${env.NEXTAUTH_URL}/api/auth/signin/usersau`, callbackUrl },
+    client,
+    params: { code, state },
+    checks,
+  })
+  await assert.rejects(() => exchange("valid", "wrong-state"), /state mismatch/)
+  assert.equal(exchanges, 0)
+  const { tokens } = await exchange("valid")
+  assert.deepEqual(await client.userinfo(new TokenSet(tokens)), { sub: "42", name: "Fixture user" })
+  await assert.rejects(() => exchange("missing-id-token"), /id_token not present/)
+  await assert.rejects(() => exchange("invalid-signature"), /failed to validate JWT signature/)
+  const wrongSubject = await exchange("wrong-subject")
+  await assert.rejects(() => client.userinfo(new TokenSet(wrongSubject.tokens)), /userinfo sub mismatch/)
+  assert.equal(exchanges, 4)
 })
 
 test("return URLs retain local path/query while rejecting external and encoded redirect tricks and loops", () => {

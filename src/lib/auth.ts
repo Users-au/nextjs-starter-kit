@@ -15,12 +15,15 @@ function safePreferences(value: unknown, subject: unknown) {
 export function createAuthOptions(env: AuthEnvironment): AuthOptions {
   const config = authEnvironment(env)
   const callbackUrl = `${config.appOrigin}${authPaths.callback}`
+  const usesOpenId = config.scope.split(/\s+/).includes("openid")
   return {
     secret: config.secret,
     providers: [{
       id: "usersau",
       name: "Users.au",
       type: "oauth",
+      issuer: config.identityOrigin,
+      jwks_endpoint: `${config.identityOrigin}/.well-known/jwks.json`,
       authorization: {
         url: `${config.identityOrigin}/oauth/authorize`,
         params: { response_type: "code", scope: config.scope, redirect_uri: callbackUrl },
@@ -30,8 +33,12 @@ export function createAuthOptions(env: AuthEnvironment): AuthOptions {
       token: {
         url: `${config.identityOrigin}/oauth/token`,
         async request({ client, params, checks }) {
-          // Keep state/PKCE checks and the token exchange on the same registered URI.
-          return { tokens: await client.oauthCallback(callbackUrl, params, checks) }
+          const codeChecks = { ...checks, response_type: "code" }
+          // OIDC validates the ID token. NextAuth still reads profile and preferences from UserInfo.
+          const tokens = usesOpenId
+            ? await client.callback(callbackUrl, params, codeChecks)
+            : await client.oauthCallback(callbackUrl, params, codeChecks)
+          return { tokens }
         },
       },
       userinfo: `${config.identityOrigin}/api/user`,

@@ -37,7 +37,8 @@ That project URL serves authentication even if its name matches this application
 Resolve an ambiguous "Application / Issuer URL" label using those roles and env.
 Use its /oauth/authorize, /oauth/token and /api/user endpoints; the callback is
 NEXTAUTH_URL + /auth/usersau/callback, on this application, not on Users.au.
-This starter uses OAuth 2.0 directly; no separate OIDC issuer/discovery URL is needed.
+With the openid scope, validate the ID token using the Users.au origin as issuer
+and that origin's /.well-known/jwks.json. No extra URL configuration is needed.
 Ask only for genuinely missing or conflicting values after inspecting context;
 do not ask users to repeat the identity URL or Client Secret already configured.
 If access requirements are unspecified, ask once in plain language whether all
@@ -220,8 +221,9 @@ loopback is allowed only outside production. Trailing `/` is normalized.
 
 The Users.au project domain is the authentication service, even if it shares
 your application's name. The app can run at `http://localhost:3000` while login
-runs at `https://<project>.users.au`. This starter configures OAuth endpoints
-directly and does not require a separate OIDC issuer or discovery URL. See the
+runs at `https://<project>.users.au`. With `openid`, the starter validates the
+ID token using the configured Users.au origin and its JWKS, then reads the
+profile and preferences from `/api/user`. See the
 [URL reference and AI guidance](docs/AI_IMPLEMENTATION.md#resolve-configuration-before-asking-questions).
 
 `NEXT_PUBLIC_*` values are browser-visible and generally fixed when Next.js
