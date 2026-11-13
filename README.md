@@ -37,7 +37,9 @@ That project URL serves authentication even if its name matches this application
 Resolve an ambiguous "Application / Issuer URL" label using those roles and env.
 Use its /oauth/authorize, /oauth/token and /api/user endpoints; the callback is
 NEXTAUTH_URL + /auth/usersau/callback, on this application, not on Users.au.
-This starter uses OAuth 2.0 directly; no separate OIDC issuer/discovery URL is needed.
+Use the default OAuth scopes for standard app login. To use OpenID Connect,
+include openid in USERSAU_SCOPE and enable ID tokens for requests without a
+nonce in the Users.au OAuth application settings.
 Ask only for genuinely missing or conflicting values after inspecting context;
 do not ask users to repeat the identity URL or Client Secret already configured.
 If access requirements are unspecified, ask once in plain language whether all
@@ -206,7 +208,7 @@ on the server. Preserve an existing application's access restrictions.
 | `NEXTAUTH_SECRET` | Private secret of at least 32 characters; preserve across restarts and replicas. |
 | `USERSAU_CLIENT_ID` / `USERSAU_CLIENT_SECRET` | Private configuration for this environment's OAuth registration. |
 | `USERSAU_HOST` | Your Users.au project's hosted login origin, such as `https://<project>.users.au` or its custom identity domain. No path, query, fragment or credentials. |
-| `USERSAU_SCOPE` | Defaults to `openid profile email preferences:read preferences:write`; register these permissions on the OAuth application. |
+| `USERSAU_SCOPE` | Defaults to `profile email preferences:read preferences:write`; register these permissions on the OAuth application. |
 | `USERSAU_PREFERENCES_ENABLED` | Set `true` to enable profile/preference synchronization and server-side credential storage. |
 | `USERSAU_GRANT_STORE_URL` / `USERSAU_GRANT_STORE_TOKEN` | Private HTTPS Redis REST endpoint and token; required in production when synchronization is enabled. |
 | `USERSAU_ACCESS_MODE` | Explicit login policy: `all` for normal project sign-in; optional `allowlist` for selected accounts. |
@@ -220,8 +222,9 @@ loopback is allowed only outside production. Trailing `/` is normalized.
 
 The Users.au project domain is the authentication service, even if it shares
 your application's name. The app can run at `http://localhost:3000` while login
-runs at `https://<project>.users.au`. This starter configures OAuth endpoints
-directly and does not require a separate OIDC issuer or discovery URL. See the
+runs at `https://<project>.users.au`. With `openid`, the starter validates the
+ID token using the configured Users.au origin and its JWKS, then reads the
+profile and preferences from `/api/user`. See the
 [URL reference and AI guidance](docs/AI_IMPLEMENTATION.md#resolve-configuration-before-asking-questions).
 
 `NEXT_PUBLIC_*` values are browser-visible and generally fixed when Next.js
@@ -229,7 +232,7 @@ builds client code. Never place secrets there; rebuild when public values change
 The dashboard/account actions receive the validated identity origin from the
 server. See [Next.js environment variables](https://nextjs.org/docs/15/app/guides/environment-variables).
 
-Register the default five scopes before rollout. Requesting an unsupported scope
+Register the default four scopes before rollout. Requesting an unsupported scope
 can cause `invalid_scope`; custom scopes must include both preference permissions
 when synchronization is enabled. Existing grants require fresh authorization.
 Tests inspect the actual NextAuth-generated request.

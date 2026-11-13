@@ -142,8 +142,9 @@ vercel env ls --environment production --scope my-team
 
 Generate it once per environment and preserve it on redeployments. The list
 command checks variable names, targets and storage types; Secret values remain
-hidden. Register the default `openid profile email preferences:read preferences:write`
-scopes. With `USERSAU_PREFERENCES_ENABLED=true`, configure the private HTTPS Redis
+hidden. Register the default `profile email preferences:read preferences:write`
+scopes. For OIDC, add `openid` explicitly and enable ID tokens for requests
+without a nonce on the Users.au OAuth application. With `USERSAU_PREFERENCES_ENABLED=true`, configure the private HTTPS Redis
 REST store and token before deploying; all replicas must share this store and
 `NEXTAUTH_SECRET`. See [identity preferences](docs/identity-preferences.md) for
 encrypted credentials, storage permissions and reauthorization. No store is
